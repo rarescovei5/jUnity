@@ -15,41 +15,77 @@ class SpriteRenderer {
 export class GameEngine {
   constructor() {
     this.objects = {};
-
-    //Used only internally
-    this.objectFound = false;
   }
-  addSceneObject(name, position, angle, scale) {
+  addSceneObject(
+    name = '',
+    position = { x: 0, y: 0 },
+    angle = 0,
+    scale = { x: 0, y: 0 },
+    parent = ''
+  ) {
+    // If name is invalid return
+    if (typeof name !== typeof '') {
+      throw console.error(
+        `-=- Invalid Object Name -=- \n Name can not be a ${typeof name}`
+      );
+    } else if (name === '') {
+      throw console.error(
+        `-=- Invalid Object Name -=- \n Name Can not be an empty string`
+      );
+    }
+
     // If There is already an object with that name then return
-    this.objectExists(name, this.objects);
-    if (this.objectFound) {
-      console.log('item found');
-      this.objectFound = false;
+    let path = this.findObject(name, this.objects);
+    if (path) {
+      throw console.error('-=- Object Name already exists -=-');
       return;
     }
 
-    //Add object with *name* with compulsory Transform class
-    this.objects[name] = {
-      transform: new Transform(position, angle, scale),
-      children: {},
-    };
-  }
-  objectExists(name, object) {
-    if (this.objectFound == true) return;
-
-    if (!object.children) {
-      for (const id in object) {
-        let sceneObject = object.id;
-
-        if (id == name) {
-          this.objectFound = true;
-          return;
-        } else if (sceneObject.children) {
-          sceneObject(name, sceneObject.children);
-        }
-      }
+    //Add object with *name* to *parent* with compulsory Transform class to parent
+    path = this.findObject(parent, this.objects);
+    if (!path && parent !== '') {
+      throw console.error(
+        `-=- Invalid Parent Name -=- \n Parent doesn't exist`
+      );
+    } else if (typeof parent !== typeof '') {
+      throw console.error(
+        `-=- Invalid Parent Name -=- \n Parent can not be a ${typeof parent}`
+      );
+    } else if (parent == '') {
+      //Add object with *name* with compulsory Transform class to parent
+      //If parent is '' that just means the parent is this.objects
+      this.objects[name] = {
+        transform: new Transform(position, angle, scale),
+        children: {},
+      };
     } else {
-      this.objectExists(name, object.children);
+      //Add object with *name* to *parent* with compulsory Transform class to parent
     }
+  }
+  findObject(name, object, path = []) {
+    for (const id in object) {
+      let sceneObject = object[id];
+
+      // Add the current object's name to the path
+      path.push(id);
+
+      if (id === name) {
+        // If found, remove the current name and return the path
+        path.pop();
+        return path;
+      }
+
+      // Recur into children if they exist
+      if (sceneObject.children) {
+        const result = this.findObject(name, sceneObject.children, path);
+        if (result) return result; // Return the path if found
+      }
+
+      // Remove the current object name if not found in this branch
+      path.pop();
+    }
+
+    // Return null if the object is not found
+    return null;
   }
 }
