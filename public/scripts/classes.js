@@ -1,21 +1,28 @@
 class Transform {
-  constructor({ position, angle, scale }) {
-    this.position.x = position.x;
-    this.position.y = position.y;
-    this.rotation = rotation;
-    this.scale.x = scale.x;
-    this.scale.y = scale.y;
+  constructor(position, angle = 0, scale) {
+    this.position = { x: position.x, y: position.y };
+    this.rotation = angle;
+    this.scale = { x: scale.x, y: scale.y };
   }
 }
 class SpriteRenderer {
-  constructor({ sprite, color }) {
-    this.sprite = sprite;
+  constructor(shape, color) {
+    this.sprite = shape;
     this.color = color;
   }
 }
 
-class GameEngine {
-  constructor(canvas) {
-    let objects = {};
+export class GameEngine {
+  constructor() {
+    this.objects = {};
+  }
+  addSceneObject(name, position, angle, scale) {
+    if (this.objects[name]) return; // If There is already an object with that name then return
+
+    //Add object with *name* with compulsory Transform class
+    this.objects[name] = {
+      Transform: new Transform(position, angle, scale),
+      Child: {},
+    };
   }
 }
