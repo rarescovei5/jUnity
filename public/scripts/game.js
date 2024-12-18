@@ -15,5 +15,3 @@ gameEngine.addSceneObject('Ragdoll', { x: windowW / 2, y: windowH / 2 }, 0, {
   x: 100,
   y: 100,
 });
-
-console.log(gameEngine);
