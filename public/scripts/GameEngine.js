@@ -113,6 +113,8 @@ export class GameEngine {
   }
 
   addSpriteRenderer(name = '', shape = '', color = '') {
+    shape = shape.toLowerCase();
+
     // If shape is invalid return
     if (typeof shape !== typeof '') {
       throw console.error(
@@ -156,6 +158,7 @@ export class GameEngine {
 
       c.beginPath();
       c.fillStyle = sceneObject.spriteRenderer.color;
+      c.strokeStyle = sceneObject.spriteRenderer.color;
 
       if (sceneObject.spriteRenderer.sprite == 'box') {
         c.moveTo(
@@ -178,12 +181,37 @@ export class GameEngine {
           sceneObject.transform.position.x,
           sceneObject.transform.position.y
         );
-        c.strokeStyle = sceneObject.spriteRenderer.color;
-        c.stroke();
       } else if (sceneObject.spriteRenderer.sprite == 'triangle') {
+        c.moveTo(
+          sceneObject.transform.position.x,
+          sceneObject.transform.position.y
+        );
+        c.lineTo(
+          sceneObject.transform.position.x + sceneObject.transform.scale.x,
+          sceneObject.transform.position.y
+        );
+        c.lineTo(
+          (2 * sceneObject.transform.position.x +
+            sceneObject.transform.scale.x) /
+            2,
+          sceneObject.transform.position.y + sceneObject.transform.scale.y
+        );
+        c.lineTo(
+          sceneObject.transform.position.x,
+          sceneObject.transform.position.y
+        );
       } else if (sceneObject.spriteRenderer.sprite == 'circle') {
+        c.arc(
+          sceneObject.transform.position.x,
+          sceneObject.transform.position.y,
+          sceneObject.transform.scale.x / 2,
+          0,
+          2 * Math.PI
+        );
       }
 
+      c.stroke();
+      c.fill();
       c.closePath();
     }
   }

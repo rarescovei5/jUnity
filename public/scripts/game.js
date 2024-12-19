@@ -1,5 +1,6 @@
-import { GameEngine } from './classes.js';
+import { GameEngine } from './GameEngine.js';
 
+//Javascript Canvas
 let canvas = document.getElementById('canvas');
 export let c = canvas.getContext('2d');
 
@@ -10,19 +11,34 @@ canvas.width = windowW;
 canvas.height = windowH;
 canvas.style.background = '#0f0f0f';
 
+c.transform(1, 0, 0, -1, 0, canvas.height);
+
+//"We have Unity at home" ahh
 let gameEngine = new GameEngine();
 
-gameEngine.addSceneObject('Ragdoll', { x: windowW / 2, y: windowH / 2 }, 0, {
+gameEngine.addSceneObject('Ragdoll', { x: windowW / 2, y: 300 }, 0, {
   x: 100,
   y: 100,
 });
 gameEngine.addSpriteRenderer('Ragdoll', 'box', '#fff');
 
-gameEngine.addSceneObject('Terrain', { x: windowW / 4, y: windowH - 100 }, 0, {
+gameEngine.addSceneObject('Terrain', { x: windowW / 4, y: 0 }, 0, {
   x: windowW / 2,
   y: 100,
 });
 gameEngine.addSpriteRenderer('Terrain', 'box', '#fff');
+
+gameEngine.addSceneObject('circle', { x: windowW / 8, y: windowH - 500 }, 0, {
+  x: 100,
+  y: 100,
+});
+gameEngine.addSpriteRenderer('circle', 'circle', '#fff');
+
+gameEngine.addSceneObject('triangle', { x: 400, y: 200 }, 0, {
+  x: 100,
+  y: 100,
+});
+gameEngine.addSpriteRenderer('triangle', 'triangle', '#fff');
 
 gameEngine.drawObjects();
 
