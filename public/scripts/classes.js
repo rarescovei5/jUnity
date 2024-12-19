@@ -147,6 +147,44 @@ export class GameEngine {
       color
     );
 
-    this.objectsWithRender.push(name);
+    this.objectsWithRender.push(path);
+  }
+
+  drawObjects() {
+    for (let i = 0; i < this.objectsWithRender.length; i++) {
+      let sceneObject = this.getObjectPointer(this.objectsWithRender[i]);
+
+      c.beginPath();
+      c.fillStyle = sceneObject.spriteRenderer.color;
+
+      if (sceneObject.spriteRenderer.sprite == 'box') {
+        c.moveTo(
+          sceneObject.transform.position.x,
+          sceneObject.transform.position.y
+        );
+        c.lineTo(
+          sceneObject.transform.position.x + sceneObject.transform.scale.x,
+          sceneObject.transform.position.y
+        );
+        c.lineTo(
+          sceneObject.transform.position.x + sceneObject.transform.scale.x,
+          sceneObject.transform.position.y + sceneObject.transform.scale.y
+        );
+        c.lineTo(
+          sceneObject.transform.position.x,
+          sceneObject.transform.position.y + sceneObject.transform.scale.y
+        );
+        c.lineTo(
+          sceneObject.transform.position.x,
+          sceneObject.transform.position.y
+        );
+        c.strokeStyle = sceneObject.spriteRenderer.color;
+        c.stroke();
+      } else if (sceneObject.spriteRenderer.sprite == 'triangle') {
+      } else if (sceneObject.spriteRenderer.sprite == 'circle') {
+      }
+
+      c.closePath();
+    }
   }
 }
