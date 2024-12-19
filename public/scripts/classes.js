@@ -1,3 +1,6 @@
+//Instead of game.js, change the file to where you have your canvas,
+import { c } from './game.js';
+
 class Transform {
   constructor(position, angle = 0, scale) {
     this.position = { x: position.x, y: position.y };
@@ -16,6 +19,7 @@ export class GameEngine {
   constructor() {
     this.objects = {};
   }
+
   addSceneObject(
     name = '',
     position = { x: 0, y: 0 },
@@ -59,9 +63,15 @@ export class GameEngine {
         children: {},
       };
     } else {
+      path.push(parent);
+      this.getObjectPointer(path).children[name] = {
+        transform: new Transform(position, angle, scale),
+        children: {},
+      };
       //Add object with *name* to *parent* with compulsory Transform class to parent
     }
   }
+
   findObject(name, object, path = []) {
     for (const id in object) {
       let sceneObject = object[id];
@@ -87,5 +97,18 @@ export class GameEngine {
 
     // Return null if the object is not found
     return null;
+  }
+
+  getObjectPointer(path) {
+    let schema = this.objects;
+    for (let i = 0; i < path.length; i++) {
+      if (i == 0) {
+        schema = schema[path[i]];
+      } else {
+        schema = schema.children[path[i]];
+      }
+    }
+
+    return schema;
   }
 }

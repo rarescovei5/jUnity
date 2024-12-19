@@ -1,7 +1,7 @@
 import { GameEngine } from './classes.js';
 
 let canvas = document.getElementById('canvas');
-let c = canvas.getContext('2d');
+export let c = canvas.getContext('2d');
 
 let windowW = window.innerWidth;
 let windowH = window.innerHeight;
@@ -14,6 +14,10 @@ let gameEngine = new GameEngine();
 
 gameEngine.addSceneObject('Ragdoll', { x: windowW / 2, y: windowH / 2 }, 0, {
   x: 100,
+  y: 100,
+});
+gameEngine.addSceneObject('Terrain', { x: windowW / 4, y: windowH - 100 }, 0, {
+  x: windowW / 2,
   y: 100,
 });
 
