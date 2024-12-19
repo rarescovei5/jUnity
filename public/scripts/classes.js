@@ -18,6 +18,7 @@ class SpriteRenderer {
 export class GameEngine {
   constructor() {
     this.objects = {};
+    this.objectsWithRender = [];
   }
 
   addSceneObject(
@@ -39,14 +40,13 @@ export class GameEngine {
     }
 
     // If There is already an object with that name then return
-    let path = this.findObject(name, this.objects);
+    let path = this.findObjectParent(name, this.objects);
     if (path) {
       throw console.error('-=- Object Name already exists -=-');
-      return;
     }
 
     //Add object with *name* to *parent* with compulsory Transform class to parent
-    path = this.findObject(parent, this.objects);
+    path = this.findObjectParent(parent, this.objects);
     if (!path && parent !== '') {
       throw console.error(
         `-=- Invalid Parent Name -=- \n Parent doesn't exist`
@@ -72,7 +72,7 @@ export class GameEngine {
     }
   }
 
-  findObject(name, object, path = []) {
+  findObjectParent(name, object, path = []) {
     for (const id in object) {
       let sceneObject = object[id];
 
@@ -87,7 +87,7 @@ export class GameEngine {
 
       // Recur into children if they exist
       if (sceneObject.children) {
-        const result = this.findObject(name, sceneObject.children, path);
+        const result = this.findObjectParent(name, sceneObject.children, path);
         if (result) return result; // Return the path if found
       }
 
@@ -110,5 +110,43 @@ export class GameEngine {
     }
 
     return schema;
+  }
+
+  addSpriteRenderer(name = '', shape = '', color = '') {
+    // If shape is invalid return
+    if (typeof shape !== typeof '') {
+      throw console.error(
+        `-=- Invalid Object Shape -=- \n Shape can not be a ${typeof name}`
+      );
+    } else if (shape === '') {
+      throw console.error(
+        `-=- Invalid Object Shape -=- \n Shape can not be an empty string`
+      );
+    }
+    // If color is invalid return
+    if (typeof color !== typeof '') {
+      throw console.error(
+        `-=- Invalid Object Color -=- \n Color can not be a ${typeof name}`
+      );
+    } else if (color === '') {
+      throw console.error(
+        `-=- Invalid Object Color -=- \n Color can not be an empty string`
+      );
+    }
+
+    //If name doesnt exist return
+    let path = this.findObjectParent(name, this.objects);
+    if (!path) {
+      throw console.error(`-=- Object Name doesn't exist -=-`);
+    }
+
+    //Add SpriteRenderer class to object
+    path.push(name);
+    this.getObjectPointer(path).spriteRenderer = new SpriteRenderer(
+      shape,
+      color
+    );
+
+    this.objectsWithRender.push(name);
   }
 }
