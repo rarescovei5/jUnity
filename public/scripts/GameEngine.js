@@ -1,6 +1,33 @@
 //Instead of game.js, change the file to where you have your canvas,
 import { c } from './game.js';
 
+//---------------------------------- Utility Classes ----------------------------------
+class FlatVector {
+  constructor(x, y) {
+    this.x = x;
+    this.y = y;
+  }
+}
+
+function addVectors(a, b) {
+  return new FlatVector(a.x + b.x, a.y + b.y);
+}
+function subtractVectors(a, b) {
+  return new FlatVector(a.x - b.x, a.y - b.y);
+}
+function opositeVector(v) {
+  return new FlatVector(-v.x, -v.y);
+}
+function multiplyVector(v, scalar) {
+  return new FlatVector(v.x * scalar, v.y * scalar);
+}
+function divideVector(v, scalar) {
+  return new FlatVector(v.x / scalar, v.y / scalar);
+}
+
+let zero = new FlatVector(0, 0);
+
+//---------------------------------- Game Engine Property Classes ----------------------------------
 class Transform {
   constructor(position, angle = 0, scale) {
     this.position = { x: position.x, y: position.y };
@@ -15,6 +42,7 @@ class SpriteRenderer {
   }
 }
 
+//---------------------------------- Game Engine Main Class ----------------------------------
 export class GameEngine {
   constructor() {
     this.objects = {};
