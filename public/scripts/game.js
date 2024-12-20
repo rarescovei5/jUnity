@@ -21,11 +21,18 @@ gameEngine.addSceneObject('Ragdoll', { x: windowW / 2, y: 300 }, 0, {
   y: 100,
 });
 gameEngine.addSpriteRenderer('Ragdoll', 'box', '#fff');
-
-gameEngine.addSceneObject('Terrain', { x: windowW / 4, y: 0 }, 0, {
-  x: windowW / 2,
-  y: 100,
-});
+gameEngine.changeTag('Ragdoll', 'player');
+gameEngine.addSceneObject(
+  'Terrain',
+  { x: windowW / 4, y: 0 },
+  0,
+  {
+    x: windowW / 2,
+    y: 100,
+  },
+  undefined,
+  'terrain'
+);
 gameEngine.addSpriteRenderer('Terrain', 'box', '#fff');
 
 gameEngine.addSceneObject('circle', { x: windowW / 8, y: windowH - 500 }, 0, {
@@ -34,10 +41,17 @@ gameEngine.addSceneObject('circle', { x: windowW / 8, y: windowH - 500 }, 0, {
 });
 gameEngine.addSpriteRenderer('circle', 'circle', '#fff');
 
-gameEngine.addSceneObject('triangle', { x: 400, y: 200 }, 0, {
-  x: 100,
-  y: 100,
-});
+gameEngine.addSceneObject(
+  'triangle',
+  { x: 400, y: 200 },
+  0,
+  {
+    x: 100,
+    y: 100,
+  },
+  'Terrain',
+  'triangle'
+);
 gameEngine.addSpriteRenderer('triangle', 'triangle', '#fff');
 
 gameEngine.drawObjects();

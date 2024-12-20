@@ -18,7 +18,10 @@ class SpriteRenderer {
 export class GameEngine {
   constructor() {
     this.objects = {};
+
+    //Variables used for faster computing
     this.objectsWithRender = [];
+    this.taggedObjects = {};
   }
 
   addSceneObject(
@@ -26,7 +29,8 @@ export class GameEngine {
     position = { x: 0, y: 0 },
     angle = 0,
     scale = { x: 0, y: 0 },
-    parent = ''
+    parent = '',
+    tag = ''
   ) {
     // If name is invalid return
     if (typeof name !== typeof '') {
@@ -36,6 +40,12 @@ export class GameEngine {
     } else if (name === '') {
       throw console.error(
         `-=- Invalid Object Name -=- \n Name Can not be an empty string`
+      );
+    }
+    // If Tag is invalid return
+    if (typeof tag !== typeof '') {
+      throw console.error(
+        `-=- Invalid Object Tag -=- \n Tag can not be a ${typeof tag}`
       );
     }
 
@@ -58,17 +68,58 @@ export class GameEngine {
     } else if (parent == '') {
       //Add object with *name* with compulsory Transform class to parent
       //If parent is '' that just means the parent is this.objects
+
       this.objects[name] = {
         transform: new Transform(position, angle, scale),
         children: {},
       };
+
+      //Add a tag if it exists else mark it as Untagged
+      if (tag !== '') {
+        this.changeTag(name, tag);
+      } else {
+        this.changeTag(name, 'Untagged');
+      }
     } else {
+      //Add object with *name* to *parent* with compulsory Transform class to parent
       path.push(parent);
       this.getObjectPointer(path).children[name] = {
         transform: new Transform(position, angle, scale),
         children: {},
       };
-      //Add object with *name* to *parent* with compulsory Transform class to parent
+
+      //Add a tag if it exists else mark it as Untagged
+      if (tag !== '') {
+        this.changeTag(name, tag);
+      } else {
+        this.changeTag(name, 'Untagged');
+      }
+    }
+  }
+
+  changeTag(name, tag) {
+    //Get the objects with specified *name*
+    let path = this.findObjectParent(name, this.objects);
+    path.push(name);
+    this.getObjectPointer(path).tag = tag;
+
+    //Delete other tag
+    for (const t in this.taggedObjects) {
+      let objectsWithT = this.taggedObjects[t];
+      let tLen = t.length;
+      for (let i = 0; i < tLen; i++) {
+        if (objectsWithT[i] == name) {
+          this.taggedObjects[t].splice(i, 1);
+        }
+      }
+    }
+
+    //If tag exists, push the path to the current object
+    if (this.taggedObjects[tag]) {
+      this.taggedObjects[tag].push(path);
+    } //If tag doesnt exist, initialize it and set it to a list containing the path to the current object
+    else {
+      this.taggedObjects[tag] = [path];
     }
   }
 
