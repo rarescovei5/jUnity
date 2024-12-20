@@ -26,11 +26,21 @@ export class FlatVector {
   equal(v) {
     return this.x == v.x && this.y == v.y;
   }
-  opositeVector(v) {
-    return new FlatVector(-v.x, -v.y);
+  opositeVector() {
+    return new FlatVector(-this.x, -this.y);
   }
 }
 export const FlatMath = {
+  clamp: function (value, min, max) {
+    if (value < min) {
+      return min;
+    }
+    if (value > max) {
+      return max;
+    }
+
+    return value;
+  },
   length: function (v) {
     return Math.sqrt(v.x ** 2 + v.y ** 2);
   },
@@ -61,6 +71,7 @@ class Transform {
   }
 
   calculateBoxVertices() {
+    // find FlatVectors for that looks a each point
     let th, phi, v0, v1, v2, v3;
     let sY2 = this.scale.y / 2;
     let sX2 = this.scale.x / 2;
@@ -68,15 +79,31 @@ class Transform {
 
     th = Math.atan2(sY2, sX2);
     phi = th - (this.rotation * Math.PI) / 180;
-    v1 = new FlatVector(Math.cos(phi) * diagonal, Math.sin(phi) * diagonal);
+
+    v1 = new FlatVector(
+      Math.round(Math.cos(phi) * diagonal),
+      Math.round(Math.sin(phi) * diagonal)
+    );
 
     v3 = v1.opositeVector();
 
     th = Math.atan2(-sY2, sX2);
     phi = th - (this.rotation * Math.PI) / 180;
-    v2 = new FlatVector(Math.cos(phi) * diagonal, Math.sin(phi) * diagonal);
+    v2 = new FlatVector(
+      Math.round(Math.cos(phi) * diagonal),
+      Math.round(Math.sin(phi) * diagonal)
+    );
 
     v0 = v2.opositeVector();
+
+    //Adjust for objects x and y position
+    let offsetVector = new FlatVector(this.position.x, this.position.y);
+    v0.addVector(offsetVector);
+    v1.addVector(offsetVector);
+    v2.addVector(offsetVector);
+    v3.addVector(offsetVector);
+
+    this.vertices.push(v0, v1, v2, v3);
   }
 
   calculateTriangleVertices() {}
@@ -273,6 +300,9 @@ export class GameEngine {
       shape,
       color
     );
+    if (shape == 'box') {
+      this.getObjectPointer(path).transform.calculateBoxVertices();
+    }
 
     this.objectsWithRender.push(path);
   }
@@ -287,24 +317,24 @@ export class GameEngine {
 
       if (sceneObject.spriteRenderer.sprite == 'box') {
         c.moveTo(
-          sceneObject.transform.position.x,
-          sceneObject.transform.position.y
+          sceneObject.transform.vertices[0].x,
+          sceneObject.transform.vertices[0].y
         );
         c.lineTo(
-          sceneObject.transform.position.x + sceneObject.transform.scale.x,
-          sceneObject.transform.position.y
+          sceneObject.transform.vertices[1].x,
+          sceneObject.transform.vertices[1].y
         );
         c.lineTo(
-          sceneObject.transform.position.x + sceneObject.transform.scale.x,
-          sceneObject.transform.position.y + sceneObject.transform.scale.y
+          sceneObject.transform.vertices[2].x,
+          sceneObject.transform.vertices[2].y
         );
         c.lineTo(
-          sceneObject.transform.position.x,
-          sceneObject.transform.position.y + sceneObject.transform.scale.y
+          sceneObject.transform.vertices[3].x,
+          sceneObject.transform.vertices[3].y
         );
         c.lineTo(
-          sceneObject.transform.position.x,
-          sceneObject.transform.position.y
+          sceneObject.transform.vertices[0].x,
+          sceneObject.transform.vertices[0].y
         );
       } else if (sceneObject.spriteRenderer.sprite == 'triangle') {
         c.moveTo(
