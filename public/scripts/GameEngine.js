@@ -52,11 +52,34 @@ let zero = new FlatVector(0, 0);
 
 //---------------------------------- Game Engine Property Classes ----------------------------------
 class Transform {
-  constructor(position, angle = 0, scale) {
+  constructor(position, rotation = 0, scale) {
     this.position = { x: position.x, y: position.y };
-    this.rotation = angle;
+    this.rotation = rotation;
     this.scale = { x: scale.x, y: scale.y };
+
+    this.vertices = [];
   }
+
+  calculateBoxVertices() {
+    let th, phi, v0, v1, v2, v3;
+    let sY2 = this.scale.y / 2;
+    let sX2 = this.scale.x / 2;
+    let diagonal = Math.sqrt(sX2 ** 2 + sY2 ** 2);
+
+    th = Math.atan2(sY2, sX2);
+    phi = th - (this.rotation * Math.PI) / 180;
+    v1 = new FlatVector(Math.cos(phi) * diagonal, Math.sin(phi) * diagonal);
+
+    v3 = v1.opositeVector();
+
+    th = Math.atan2(-sY2, sX2);
+    phi = th - (this.rotation * Math.PI) / 180;
+    v2 = new FlatVector(Math.cos(phi) * diagonal, Math.sin(phi) * diagonal);
+
+    v0 = v2.opositeVector();
+  }
+
+  calculateTriangleVertices() {}
 }
 class SpriteRenderer {
   constructor(shape, color) {
@@ -78,7 +101,7 @@ export class GameEngine {
   addSceneObject(
     name = '',
     position = { x: 0, y: 0 },
-    angle = 0,
+    rotation = 0,
     scale = { x: 0, y: 0 },
     parent = '',
     tag = ''
@@ -121,7 +144,7 @@ export class GameEngine {
       //If parent is '' that just means the parent is this.objects
 
       this.objects[name] = {
-        transform: new Transform(position, angle, scale),
+        transform: new Transform(position, rotation, scale),
         children: {},
       };
 
@@ -135,7 +158,7 @@ export class GameEngine {
       //Add object with *name* to *parent* with compulsory Transform class to parent
       path.push(parent);
       this.getObjectPointer(path).children[name] = {
-        transform: new Transform(position, angle, scale),
+        transform: new Transform(position, rotation, scale),
         children: {},
       };
 
