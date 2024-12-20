@@ -2,29 +2,52 @@
 import { c } from './game.js';
 
 //---------------------------------- Utility Classes ----------------------------------
-class FlatVector {
+export class FlatVector {
   constructor(x, y) {
     this.x = x;
     this.y = y;
   }
+  addVector(v) {
+    this.x = this.x + v.x;
+    this.y = this.y + v.y;
+  }
+  subtractVector(v) {
+    this.x = this.x - v.x;
+    this.y = this.y - v.y;
+  }
+  multiplyScalar(scalar) {
+    this.x = this.x * scalar;
+    this.y = this.y * scalar;
+  }
+  divideScalar(scalar) {
+    this.x = this.x / scalar;
+    this.y = this.y / scalar;
+  }
+  equal(v) {
+    return this.x == v.x && this.y == v.y;
+  }
+  opositeVector(v) {
+    return new FlatVector(-v.x, -v.y);
+  }
 }
-
-function addVectors(a, b) {
-  return new FlatVector(a.x + b.x, a.y + b.y);
-}
-function subtractVectors(a, b) {
-  return new FlatVector(a.x - b.x, a.y - b.y);
-}
-function opositeVector(v) {
-  return new FlatVector(-v.x, -v.y);
-}
-function multiplyVector(v, scalar) {
-  return new FlatVector(v.x * scalar, v.y * scalar);
-}
-function divideVector(v, scalar) {
-  return new FlatVector(v.x / scalar, v.y / scalar);
-}
-
+export const FlatMath = {
+  length: function (v) {
+    return Math.sqrt(v.x ** 2 + v.y ** 2);
+  },
+  distance: function (a, b) {
+    return Math.sqrt((a.x - b.x) ** 2 + (a.y - b.y) ** 2);
+  },
+  normalize: function (v) {
+    let len = this.length(v);
+    return new FlatVector(v.x / len, v.y / len);
+  },
+  dot: function (a, b) {
+    return a.x * b.x + a.y * b.y;
+  },
+  cross: function (a, b) {
+    return a.x * b.y - a.y * b.x;
+  },
+};
 let zero = new FlatVector(0, 0);
 
 //---------------------------------- Game Engine Property Classes ----------------------------------
