@@ -17,7 +17,7 @@ c.transform(1, 0, 0, -1, 0, canvas.height);
 let gameEngine = new GameEngine();
 
 //Add *Ragdoll* object
-gameEngine.addSceneObject('Ragdoll', { x: 550, y: 550 }, 30, {
+gameEngine.addSceneObject('Ragdoll', { x: 550, y: 550 }, 45, {
   x: 200,
   y: 100,
 });

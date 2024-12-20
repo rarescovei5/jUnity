@@ -106,7 +106,37 @@ class Transform {
     this.vertices.push(v0, v1, v2, v3);
   }
 
-  calculateTriangleVertices() {}
+  calculateTriangleVertices() {
+    // find FlatVectors for that looks a each point
+    let th, phi, v0, v1, v2;
+    let b2 = this.scale.x / 2;
+    let h1 = this.scale.y * (1 / 3);
+
+    let h2 = this.scale.y * (2 / 3);
+    let h3 = Math.sqrt(h1 ** 2 + b2 ** 2);
+
+    phi = ((90 - this.rotation) * Math.PI) / 180;
+    v0 = new FlatVector(
+      Math.round(Math.cos(phi) * h2) + this.position.x,
+      Math.round(Math.sin(phi) * h2) + this.position.y
+    );
+
+    th = Math.atan2(-h1, b2);
+    phi = th - (this.rotation * Math.PI) / 180;
+    v1 = new FlatVector(
+      Math.round(Math.cos(phi) * h3) + this.position.x,
+      Math.round(Math.sin(phi) * h3) + this.position.y
+    );
+
+    th = Math.atan2(-h1, -b2);
+    phi = th - (this.rotation * Math.PI) / 180;
+    v2 = new FlatVector(
+      Math.round(Math.cos(phi) * h3) + this.position.x,
+      Math.round(Math.sin(phi) * h3) + this.position.y
+    );
+
+    this.vertices.push(v0, v1, v2);
+  }
 }
 class SpriteRenderer {
   constructor(shape, color) {
@@ -302,6 +332,8 @@ export class GameEngine {
     );
     if (shape == 'box') {
       this.getObjectPointer(path).transform.calculateBoxVertices();
+    } else if (shape == 'triangle') {
+      this.getObjectPointer(path).transform.calculateTriangleVertices();
     }
 
     this.objectsWithRender.push(path);
@@ -337,23 +369,22 @@ export class GameEngine {
           sceneObject.transform.vertices[0].y
         );
       } else if (sceneObject.spriteRenderer.sprite == 'triangle') {
+        console.log(sceneObject.transform.vertices);
         c.moveTo(
-          sceneObject.transform.position.x,
-          sceneObject.transform.position.y
+          sceneObject.transform.vertices[0].x,
+          sceneObject.transform.vertices[0].y
         );
         c.lineTo(
-          sceneObject.transform.position.x + sceneObject.transform.scale.x,
-          sceneObject.transform.position.y
+          sceneObject.transform.vertices[1].x,
+          sceneObject.transform.vertices[1].y
         );
         c.lineTo(
-          (2 * sceneObject.transform.position.x +
-            sceneObject.transform.scale.x) /
-            2,
-          sceneObject.transform.position.y + sceneObject.transform.scale.y
+          sceneObject.transform.vertices[2].x,
+          sceneObject.transform.vertices[2].y
         );
         c.lineTo(
-          sceneObject.transform.position.x,
-          sceneObject.transform.position.y
+          sceneObject.transform.vertices[0].x,
+          sceneObject.transform.vertices[0].y
         );
       } else if (sceneObject.spriteRenderer.sprite == 'circle') {
         c.arc(
