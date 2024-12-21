@@ -2,7 +2,7 @@
 import { c } from './game.js';
 
 //---------------------------------- Utility Classes ----------------------------------
-export class FlatVector {
+class FlatVector {
   constructor(x, y) {
     this.x = x;
     this.y = y;
@@ -30,7 +30,7 @@ export class FlatVector {
     return new FlatVector(-this.x, -this.y);
   }
 }
-export const FlatMath = {
+const FlatMath = {
   clamp: function (value, min, max) {
     if (value < min) {
       return min;
@@ -58,7 +58,27 @@ export const FlatMath = {
     return a.x * b.y - a.y * b.x;
   },
 };
-let zero = new FlatVector(0, 0);
+const Collision = {
+  IntersectCircle(c1, rad1, c2, rad2) {
+    let normal = nullVector;
+    let depth = 0;
+
+    let distance = FlatMath.distance(c1, c2);
+    let radii = rad1 + rad2;
+
+    //If the distance between the circles is bigger than their radii added together than return since they are not intersecting
+    if (distance >= radii) {
+      return false;
+    }
+
+    normal = FlatMath.normalize(c2.subtractVector(c1));
+    depth = radii - distance;
+
+    return { normal, depth };
+  },
+};
+
+let nullVector = new FlatVector(0, 0);
 
 //---------------------------------- Game Engine Property Classes ----------------------------------
 class Transform {
@@ -148,7 +168,17 @@ class SpriteRenderer {
     this.color = color;
   }
 }
-
+class BoxColider {}
+class CircleColider {}
+class TriangleColider {}
+class RigidBody2D {
+  constructor(type, mass, gravity, density) {
+    this.type = type;
+    this.mass = mass;
+    this.gravity = gravity;
+    this.density = density;
+  }
+}
 //---------------------------------- Game Engine Main Class ----------------------------------
 export class GameEngine {
   constructor() {
@@ -157,6 +187,8 @@ export class GameEngine {
     //Variables used for faster computing
     this.objectsWithRender = [];
     this.taggedObjects = {};
+    this.objectsWithRigidBody2D = [];
+    this.objectsWithColider = {};
   }
 
   //With this you can add objects to the scene
@@ -278,6 +310,88 @@ export class GameEngine {
     }
 
     this.objectsWithRender.push(path);
+  }
+  addBoxColider(name = '') {
+    //If name doesnt exist return
+    let path = this.findObjectParent(name, this.objects);
+    if (!path) {
+      throw console.error(`-=- Object Name doesn't exist -=-`);
+    }
+
+    //Get the object with *name*
+    path.push(name);
+    let sceneObject = this.getObjectPointer(path);
+
+    //Add BoxColider class to object
+    sceneObject.colider = new BoxColider();
+
+    //If tag exists, push the path to the current object
+    if (this.objectsWithColider['BoxColider']) {
+      this.objectsWithColider['BoxColider'].push(path);
+    } //If tag doesnt exist, initialize it and set it to a list containing the path to the current object
+    else {
+      this.objectsWithColider['BoxColider'] = [path];
+    }
+  }
+  addCircleColider(name = '') {
+    //If name doesnt exist return
+    let path = this.findObjectParent(name, this.objects);
+    if (!path) {
+      throw console.error(`-=- Object Name doesn't exist -=-`);
+    }
+
+    //Get the object with *name*
+    path.push(name);
+    let sceneObject = this.getObjectPointer(path);
+
+    //Add BoxColider class to object
+    sceneObject.colider = new CircleColider();
+
+    //If tag exists, push the path to the current object
+    if (this.objectsWithColider['CircleColider']) {
+      this.objectsWithColider['CircleColider'].push(path);
+    } //If tag doesnt exist, initialize it and set it to a list containing the path to the current object
+    else {
+      this.objectsWithColider['CircleColider'] = [path];
+    }
+  }
+  addTriangleColider(name = '') {
+    //If name doesnt exist return
+    let path = this.findObjectParent(name, this.objects);
+    if (!path) {
+      throw console.error(`-=- Object Name doesn't exist -=-`);
+    }
+
+    //Get the object with *name*
+    path.push(name);
+    let sceneObject = this.getObjectPointer(path);
+
+    //Add BoxColider class to object
+    sceneObject.colider = new TriangleColider();
+
+    //If tag exists, push the path to the current object
+    if (this.objectsWithColider['TriangleColider']) {
+      this.objectsWithColider['TriangleColider'].push(path);
+    } //If tag doesnt exist, initialize it and set it to a list containing the path to the current object
+    else {
+      this.objectsWithColider['TriangleColider'] = [path];
+    }
+  }
+  addRigidBody2D(name, type, mass, gravity, density = 1) {
+    //If name doesnt exist return
+    let path = this.findObjectParent(name, this.objects);
+    if (!path) {
+      throw console.error(`-=- Object Name doesn't exist -=-`);
+    }
+
+    //Get the object with *name*
+    path.push(name);
+    let sceneObject = this.getObjectPointer(path);
+
+    //Add BoxColider class to object
+    sceneObject.rigidBody2D = new RigidBody2D(type, mass, gravity, density);
+
+    this.objectsWithRigidBody2D.push(path);
   }
 
   //Methods for changing things
@@ -478,8 +592,8 @@ export class GameEngine {
           sceneObject.transform.position.x,
           sceneObject.transform.position.y,
           sceneObject.transform.scale.x / 2,
-          0,
-          2 * Math.PI
+          sceneObject.transform.rotation,
+          2 * Math.PI + sceneObject.transform.rotation
         );
       }
 

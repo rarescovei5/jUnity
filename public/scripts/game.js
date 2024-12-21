@@ -1,4 +1,4 @@
-import { FlatMath, FlatVector, GameEngine } from './GameEngine.js';
+import { GameEngine } from './GameEngine.js';
 
 //Javascript Canvas
 let canvas = document.getElementById('canvas');
@@ -22,7 +22,8 @@ gameEngine.addSceneObject('Player', { x: 600, y: windowH - 500 }, 0, {
   y: 100,
 });
 gameEngine.addSpriteRenderer('Player', 'circle', '#ff0000');
-
+gameEngine.addCircleColider('Player');
+gameEngine.addRigidBody2D('Player', 'static', 1, 0.098, 1);
 // Add *circle1* object
 gameEngine.addSceneObject(
   'circle1',
@@ -34,6 +35,8 @@ gameEngine.addSceneObject(
   }
 );
 gameEngine.addSpriteRenderer('circle1', 'circle', '#fff');
+gameEngine.addCircleColider('circle1');
+
 // Add *circle2* object
 gameEngine.addSceneObject(
   'circle2',
@@ -45,6 +48,8 @@ gameEngine.addSceneObject(
   }
 );
 gameEngine.addSpriteRenderer('circle2', 'circle', '#fff');
+gameEngine.addCircleColider('circle2');
+
 // Add *circle3* object
 gameEngine.addSceneObject(
   'circle3',
@@ -56,6 +61,7 @@ gameEngine.addSceneObject(
   }
 );
 gameEngine.addSpriteRenderer('circle3', 'circle', '#fff');
+gameEngine.addCircleColider('circle3');
 
 // Draw objects
 gameEngine.drawObjects();
