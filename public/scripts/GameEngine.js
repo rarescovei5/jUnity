@@ -159,6 +159,7 @@ export class GameEngine {
     this.taggedObjects = {};
   }
 
+  //With this you can add objects to the scene
   addSceneObject(
     name = '',
     position = { x: 0, y: 0 },
@@ -232,6 +233,106 @@ export class GameEngine {
     }
   }
 
+  //Utility Methods for adding properties
+  addSpriteRenderer(name = '', shape = '', color = '') {
+    shape = shape.toLowerCase();
+
+    // If shape is invalid return
+    if (typeof shape !== typeof '') {
+      throw console.error(
+        `-=- Invalid Object Shape -=- \n Shape can not be a ${typeof name}`
+      );
+    } else if (shape === '') {
+      throw console.error(
+        `-=- Invalid Object Shape -=- \n Shape can not be an empty string`
+      );
+    }
+    // If color is invalid return
+    if (typeof color !== typeof '') {
+      throw console.error(
+        `-=- Invalid Object Color -=- \n Color can not be a ${typeof name}`
+      );
+    } else if (color === '') {
+      throw console.error(
+        `-=- Invalid Object Color -=- \n Color can not be an empty string`
+      );
+    }
+
+    //If name doesnt exist return
+    let path = this.findObjectParent(name, this.objects);
+    if (!path) {
+      throw console.error(`-=- Object Name doesn't exist -=-`);
+    }
+
+    path.push(name);
+
+    //Get the object with *name*
+    let sceneObject = this.getObjectPointer(path);
+
+    //Add SpriteRenderer class to object
+    sceneObject.spriteRenderer = new SpriteRenderer(shape, color);
+    if (shape == 'box') {
+      sceneObject.transform.calculateBoxVertices();
+    } else if (shape == 'triangle') {
+      sceneObject.transform.calculateTriangleVertices();
+    }
+
+    this.objectsWithRender.push(path);
+  }
+
+  //Methods for changing things
+  changeObjectTag(name, tag) {
+    //Get the objects with specified *name*
+    let path = this.findObjectParent(name, this.objects);
+    path.push(name);
+    this.getObjectPointer(path).tag = tag;
+
+    //Delete other tag
+    for (const t in this.taggedObjects) {
+      let objectsWithT = this.taggedObjects[t];
+      let tLen = t.length;
+      for (let i = 0; i < tLen; i++) {
+        if (objectsWithT[i] == name) {
+          this.taggedObjects[t].splice(i, 1);
+        }
+      }
+    }
+
+    //If tag exists, push the path to the current object
+    if (this.taggedObjects[tag]) {
+      this.taggedObjects[tag].push(path);
+    } //If tag doesnt exist, initialize it and set it to a list containing the path to the current object
+    else {
+      this.taggedObjects[tag] = [path];
+    }
+  }
+  changeObjectColor(name, tag) {
+    //Get the objects with specified *name*
+    let path = this.findObjectParent(name, this.objects);
+    path.push(name);
+    this.getObjectPointer(path).tag = tag;
+
+    //Delete other tag
+    for (const t in this.taggedObjects) {
+      let objectsWithT = this.taggedObjects[t];
+      let tLen = t.length;
+      for (let i = 0; i < tLen; i++) {
+        if (objectsWithT[i] == name) {
+          this.taggedObjects[t].splice(i, 1);
+        }
+      }
+    }
+
+    //If tag exists, push the path to the current object
+    if (this.taggedObjects[tag]) {
+      this.taggedObjects[tag].push(path);
+    } //If tag doesnt exist, initialize it and set it to a list containing the path to the current object
+    else {
+      this.taggedObjects[tag] = [path];
+    }
+  }
+
+  //Methods for changing position
   moveObject(name, increment = { x, y }) {
     let path = this.findObjectParent(name, this.objects);
     if (!path) {
@@ -285,57 +386,7 @@ export class GameEngine {
     this.drawObjects();
   }
 
-  changeObjectTag(name, tag) {
-    //Get the objects with specified *name*
-    let path = this.findObjectParent(name, this.objects);
-    path.push(name);
-    this.getObjectPointer(path).tag = tag;
-
-    //Delete other tag
-    for (const t in this.taggedObjects) {
-      let objectsWithT = this.taggedObjects[t];
-      let tLen = t.length;
-      for (let i = 0; i < tLen; i++) {
-        if (objectsWithT[i] == name) {
-          this.taggedObjects[t].splice(i, 1);
-        }
-      }
-    }
-
-    //If tag exists, push the path to the current object
-    if (this.taggedObjects[tag]) {
-      this.taggedObjects[tag].push(path);
-    } //If tag doesnt exist, initialize it and set it to a list containing the path to the current object
-    else {
-      this.taggedObjects[tag] = [path];
-    }
-  }
-  changeObjectColor(name, tag) {
-    //Get the objects with specified *name*
-    let path = this.findObjectParent(name, this.objects);
-    path.push(name);
-    this.getObjectPointer(path).tag = tag;
-
-    //Delete other tag
-    for (const t in this.taggedObjects) {
-      let objectsWithT = this.taggedObjects[t];
-      let tLen = t.length;
-      for (let i = 0; i < tLen; i++) {
-        if (objectsWithT[i] == name) {
-          this.taggedObjects[t].splice(i, 1);
-        }
-      }
-    }
-
-    //If tag exists, push the path to the current object
-    if (this.taggedObjects[tag]) {
-      this.taggedObjects[tag].push(path);
-    } //If tag doesnt exist, initialize it and set it to a list containing the path to the current object
-    else {
-      this.taggedObjects[tag] = [path];
-    }
-  }
-
+  //Utility Methods for finding stuff
   findObjectParent(name, object, path = []) {
     for (const id in object) {
       let sceneObject = object[id];
@@ -362,7 +413,6 @@ export class GameEngine {
     // Return null if the object is not found
     return null;
   }
-
   getObjectPointer(path) {
     let schema = this.objects;
     for (let i = 0; i < path.length; i++) {
@@ -376,52 +426,7 @@ export class GameEngine {
     return schema;
   }
 
-  addSpriteRenderer(name = '', shape = '', color = '') {
-    shape = shape.toLowerCase();
-
-    // If shape is invalid return
-    if (typeof shape !== typeof '') {
-      throw console.error(
-        `-=- Invalid Object Shape -=- \n Shape can not be a ${typeof name}`
-      );
-    } else if (shape === '') {
-      throw console.error(
-        `-=- Invalid Object Shape -=- \n Shape can not be an empty string`
-      );
-    }
-    // If color is invalid return
-    if (typeof color !== typeof '') {
-      throw console.error(
-        `-=- Invalid Object Color -=- \n Color can not be a ${typeof name}`
-      );
-    } else if (color === '') {
-      throw console.error(
-        `-=- Invalid Object Color -=- \n Color can not be an empty string`
-      );
-    }
-
-    //If name doesnt exist return
-    let path = this.findObjectParent(name, this.objects);
-    if (!path) {
-      throw console.error(`-=- Object Name doesn't exist -=-`);
-    }
-
-    path.push(name);
-
-    //Get the object with *name*
-    let sceneObject = this.getObjectPointer(path);
-
-    //Add SpriteRenderer class to object
-    sceneObject.spriteRenderer = new SpriteRenderer(shape, color);
-    if (shape == 'box') {
-      sceneObject.transform.calculateBoxVertices();
-    } else if (shape == 'triangle') {
-      sceneObject.transform.calculateTriangleVertices();
-    }
-
-    this.objectsWithRender.push(path);
-  }
-
+  //Looks at this.objectWithRenderers and draws everything in there
   drawObjects() {
     for (let i = 0; i < this.objectsWithRender.length; i++) {
       let sceneObject = this.getObjectPointer(this.objectsWithRender[i]);
