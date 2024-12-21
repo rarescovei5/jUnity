@@ -8,20 +8,33 @@ class FlatVector {
     this.y = y;
   }
   addVector(v) {
-    this.x = this.x + v.x;
-    this.y = this.y + v.y;
+    let x = this.x + v.x;
+    let y = this.y + v.y;
+    return new FlatVector(x, y);
   }
   subtractVector(v) {
-    this.x = this.x - v.x;
-    this.y = this.y - v.y;
+    let x = this.x - v.x;
+    let y = this.y - v.y;
+    return new FlatVector(x, y);
   }
   multiplyScalar(scalar) {
-    this.x = this.x * scalar;
-    this.y = this.y * scalar;
+    let x = this.x * scalar;
+    let y = this.y * scalar;
+    return new FlatVector(x, y);
   }
   divideScalar(scalar) {
-    this.x = this.x / scalar;
-    this.y = this.y / scalar;
+    let x = this.x / scalar;
+    let y = this.y / scalar;
+    return new FlatVector(x, y);
+  }
+  transform(angle, translation = { x: 0, y: 0 }) {
+    let rx =
+      Math.round(Math.cos((angle * Math.PI) / 180) * this.x) -
+      Math.round(Math.sin((angle * Math.PI) / 180) * this.y);
+    let ry =
+      Math.round(Math.sin((angle * Math.PI) / 180) * this.x) +
+      Math.round(Math.cos((angle * Math.PI) / 180) * this.y);
+    return new FlatVector(rx + translation.x, ry + translation.y);
   }
   equals(v) {
     return this.x == v.x && this.y == v.y;
@@ -59,7 +72,7 @@ const FlatMath = {
   },
 };
 const Collision = {
-  IntersectCircle(c1, rad1, c2, rad2) {
+  IntersectCircles(c1, rad1, c2, rad2) {
     let normal = nullVector;
     let depth = 0;
 
@@ -71,7 +84,9 @@ const Collision = {
       return false;
     }
 
-    normal = FlatMath.normalize(c2.subtractVector(c1));
+    c2 = c2.subtractVector(c1);
+
+    normal = FlatMath.normalize(c2);
     depth = radii - distance;
 
     return { normal, depth };
@@ -88,44 +103,40 @@ class Transform {
     this.scale = { x: scale.x, y: scale.y };
 
     this.vertices = [];
+    this.triangles = [];
   }
 
   calculateBoxVertices() {
-    //Reset Previous Vertices
-    this.vertices = [];
-    // find FlatVectors for that looks a each point
-    let th, phi, v0, v1, v2, v3;
-    let sY2 = this.scale.y / 2;
-    let sX2 = this.scale.x / 2;
-    let diagonal = Math.sqrt(sX2 ** 2 + sY2 ** 2);
+    //Initialize directions
+    let left = -this.scale.x / 2;
+    let right = -left;
+    let bottom = -this.scale.y / 2;
+    let top = -bottom;
 
-    th = Math.atan2(sY2, sX2);
-    phi = th - (this.rotation * Math.PI) / 180;
+    //Calculate vertices
+    let translation, v0, v1, v2, v3;
+    translation = new FlatVector(this.position.x, this.position.y);
+    v0 = new FlatVector(left, top).transform(this.rotation, translation);
+    v1 = new FlatVector(right, top).transform(this.rotation, translation);
+    v2 = new FlatVector(right, bottom).transform(this.rotation, translation);
+    v3 = new FlatVector(left, bottom).transform(this.rotation, translation);
 
-    v1 = new FlatVector(
-      Math.round(Math.cos(phi) * diagonal),
-      Math.round(Math.sin(phi) * diagonal)
-    );
+    //Add vertices
+    this.vertices[0] = v0;
+    this.vertices[1] = v1;
+    this.vertices[2] = v2;
+    this.vertices[3] = v3;
 
-    v3 = v1.opositeVector();
+    this.createBoxTriangles();
+  }
 
-    th = Math.atan2(-sY2, sX2);
-    phi = th - (this.rotation * Math.PI) / 180;
-    v2 = new FlatVector(
-      Math.round(Math.cos(phi) * diagonal),
-      Math.round(Math.sin(phi) * diagonal)
-    );
-
-    v0 = v2.opositeVector();
-
-    //Adjust for objects x and y position
-    let offsetVector = new FlatVector(this.position.x, this.position.y);
-    v0.addVector(offsetVector);
-    v1.addVector(offsetVector);
-    v2.addVector(offsetVector);
-    v3.addVector(offsetVector);
-
-    this.vertices.push(v0, v1, v2, v3);
+  createBoxTriangles() {
+    this.triangles[0] = 0;
+    this.triangles[1] = 1;
+    this.triangles[2] = 2;
+    this.triangles[3] = 0;
+    this.triangles[4] = 2;
+    this.triangles[5] = 3;
   }
 
   calculateTriangleVertices() {
@@ -394,6 +405,79 @@ export class GameEngine {
     this.objectsWithRigidBody2D.push(path);
   }
 
+  //RigidBody Functionalities
+  simulateObjectForces() {
+    //Have a cache so you don t double check
+    let cache = new Set();
+
+    //Loop Through every object with a rigidBody2D
+    for (let i = 0; i < this.objectsWithRigidBody2D.length; i++) {
+      //Get the Path to the objectA and then get the object
+      let pathA = this.objectsWithRigidBody2D[i];
+      let objectA = this.getObjectPointer(pathA);
+
+      //If object has no colider than continue
+      if (!objectA.colider) {
+        continue;
+      }
+
+      //Loop through every object with circleColider
+      for (let j = 0; j < this.objectsWithColider.CircleColider.length; j++) {
+        //Get the path to objectB
+        let pathB = this.objectsWithColider.CircleColider[j];
+
+        //If the path to both objects are equal it means we are checking the same pair
+        //If the pair is in the cache then we have already checked it but in a different order
+        if (
+          pathA[pathA.length - 1] == pathB[pathB.length - 1] ||
+          cache.has(new Set(pathA[pathA.length - 1], pathB[pathB.length - 1]))
+        ) {
+          continue;
+        } else {
+          cache.add(new Set(pathA[pathA.length - 1], pathB[pathB.length - 1]));
+        }
+
+        //Get the objectB
+        let objectB = this.getObjectPointer(pathB);
+
+        //Find out if the circles intersect ( returns either *false* or *{new FlatVector(), depth}*)
+
+        let intersection = Collision.IntersectCircles(
+          new FlatVector(
+            objectA.transform.position.x,
+            objectA.transform.position.y
+          ),
+          objectA.transform.scale.x / 2,
+          new FlatVector(
+            objectB.transform.position.x,
+            objectB.transform.position.y
+          ),
+          objectB.transform.scale.x / 2
+        );
+
+        if (intersection) {
+          intersection.normal = intersection.normal.multiplyScalar(
+            intersection.depth
+          );
+          if (!objectB.rigidBody2D) {
+            this.moveObject(
+              pathA[pathA.length - 1],
+              intersection.normal.opositeVector()
+            );
+            continue;
+          }
+          intersection.normal = intersection.normal.divideScalar(2);
+
+          this.moveObject(
+            pathA[pathA.length - 1],
+            intersection.normal.opositeVector()
+          );
+          this.moveObject(pathB[pathB.length - 1], intersection.normal);
+        }
+      }
+    }
+  }
+
   //Methods for changing things
   changeObjectTag(name, tag) {
     //Get the objects with specified *name*
@@ -470,8 +554,6 @@ export class GameEngine {
     if (sceneObject.spriteRenderer.sprite == 'triangle') {
       sceneObject.transform.calculateTriangleVertices();
     }
-
-    this.drawObjects();
   }
   moveObjectTo(name, newPosition = { x, y }) {
     let path = this.findObjectParent(name, this.objects);
@@ -496,8 +578,6 @@ export class GameEngine {
     if (sceneObject.spriteRenderer.sprite == 'triangle') {
       sceneObject.transform.calculateTriangleVertices();
     }
-
-    this.drawObjects();
   }
 
   //Utility Methods for finding stuff

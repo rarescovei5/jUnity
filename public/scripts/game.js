@@ -17,6 +17,13 @@ c.transform(1, 0, 0, -1, 0, canvas.height);
 let gameEngine = new GameEngine();
 
 // Add *Player* object
+gameEngine.addSceneObject('terrain', { x: 110, y: 110 }, 0, {
+  x: 100,
+  y: 100,
+});
+gameEngine.addSpriteRenderer('terrain', 'box', '#fff');
+
+// Add *Player* object
 gameEngine.addSceneObject('Player', { x: 600, y: windowH - 500 }, 0, {
   x: 100,
   y: 100,
@@ -27,7 +34,7 @@ gameEngine.addRigidBody2D('Player', 'static', 1, 0.098, 1);
 // Add *circle1* object
 gameEngine.addSceneObject(
   'circle1',
-  { x: Math.random() * 1400, y: Math.random() * 800 },
+  { x: Math.round(Math.random() * 1400), y: Math.round(Math.random() * 800) },
   0,
   {
     x: 100,
@@ -36,11 +43,11 @@ gameEngine.addSceneObject(
 );
 gameEngine.addSpriteRenderer('circle1', 'circle', '#fff');
 gameEngine.addCircleColider('circle1');
-
+gameEngine.addRigidBody2D('circle1', 'static', 1, 0.098, 1);
 // Add *circle2* object
 gameEngine.addSceneObject(
   'circle2',
-  { x: Math.random() * 1400, y: Math.random() * 800 },
+  { x: Math.round(Math.random() * 1400), y: Math.round(Math.random() * 800) },
   0,
   {
     x: 100,
@@ -49,18 +56,18 @@ gameEngine.addSceneObject(
 );
 gameEngine.addSpriteRenderer('circle2', 'circle', '#fff');
 gameEngine.addCircleColider('circle2');
-
+gameEngine.addRigidBody2D('circle2', 'static', 1, 0.098, 1);
 // Add *circle3* object
 gameEngine.addSceneObject(
   'circle3',
-  { x: Math.random() * 1400, y: Math.random() * 800 + 100 },
+  { x: Math.round(Math.random() * 1400), y: Math.round(Math.random() * 800) },
   0,
   {
     x: 100,
     y: 100,
   }
 );
-gameEngine.addSpriteRenderer('circle3', 'circle', '#fff');
+gameEngine.addSpriteRenderer('circle3', 'circle', '#b2b2b2');
 gameEngine.addCircleColider('circle3');
 
 // Draw objects
@@ -101,28 +108,26 @@ window.addEventListener('keyup', (e) => {
   }
 });
 
-let playerSpeed = 2;
+let playerSpeed = 5;
 function update(time) {
+  c.fillStyle = '#0f0f0f';
+  c.fillRect(0, 0, canvas.width, canvas.height);
   if (wDown) {
-    c.fillStyle = '#0f0f0f';
-    c.fillRect(0, 0, canvas.width, canvas.height);
     gameEngine.moveObject('Player', { x: 0, y: playerSpeed });
   }
   if (aDown) {
-    c.fillStyle = '#0f0f0f';
-    c.fillRect(0, 0, canvas.width, canvas.height);
     gameEngine.moveObject('Player', { x: -playerSpeed, y: 0 });
   }
   if (sDown) {
-    c.fillStyle = '#0f0f0f';
-    c.fillRect(0, 0, canvas.width, canvas.height);
     gameEngine.moveObject('Player', { x: 0, y: -playerSpeed });
   }
   if (dDown) {
-    c.fillStyle = '#0f0f0f';
-    c.fillRect(0, 0, canvas.width, canvas.height);
     gameEngine.moveObject('Player', { x: playerSpeed, y: 0 });
   }
+
+  gameEngine.simulateObjectForces();
+
+  gameEngine.drawObjects();
   window.requestAnimationFrame(update);
 }
 
