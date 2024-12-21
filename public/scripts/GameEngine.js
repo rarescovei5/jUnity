@@ -73,7 +73,97 @@ const FlatMath = {
   },
 };
 const Collision = {
-  IntersectCircles(c1, rad1, c2, rad2) {
+  projectVertices: function (vertices = [], axis = new FlatVector()) {
+    let min = 1000000000000000;
+    let max = -min;
+
+    for (let i = 0; i < vertices.length; i++) {
+      let v = vertices[i];
+      let proj = FlatMath.dot(v, axis);
+
+      if (proj < min) {
+        min = proj;
+      }
+      if (proj > max) {
+        max = proj;
+      }
+    }
+
+    return [min, max];
+  },
+  arithmeticMean: function (vertices) {
+    let sumX = 0;
+    let sumY = 0;
+    for (let i = 0; i < vertices.length; i++) {
+      let v = vertices[i];
+      sumX += v.x;
+      sumY += v.y;
+    }
+
+    return new FlatVector(sumX / vertices.length, sumY / vertices.length);
+  },
+  IntersectPoligons: function (verticesA, verticesB) {
+    let normal = nullVector;
+    let depth = 1000000000;
+
+    for (let i = 0; i < verticesA.length; i++) {
+      let va = verticesA[i];
+      let vb = verticesA[(i + 1) % verticesA.length];
+
+      let edge = vb.subtractVector(va);
+      let axis = new FlatVector(-edge.y, edge.x);
+
+      let [minA, maxA] = this.projectVertices(verticesA, axis);
+      let [minB, maxB] = this.projectVertices(verticesB, axis);
+
+      if (minA >= maxB || minB >= maxA) {
+        return false;
+      }
+
+      let axisDepth = Math.min(maxB - minA, maxA - minB);
+
+      if (axisDepth < depth) {
+        depth = axisDepth;
+        normal = axis;
+      }
+    }
+
+    for (let i = 0; i < verticesB.length; i++) {
+      let va = verticesB[i];
+      let vb = verticesB[(i + 1) % verticesB.length];
+
+      let edge = vb.subtractVector(va);
+      let axis = new FlatVector(-edge.y, edge.x);
+
+      let [minA, maxA] = this.projectVertices(verticesA, axis);
+      let [minB, maxB] = this.projectVertices(verticesB, axis);
+
+      if (minA >= maxB || minB >= maxA) {
+        return false;
+      }
+
+      let axisDepth = Math.min(maxB - minA, maxA - minB);
+
+      if (axisDepth < depth) {
+        depth = axisDepth;
+        normal = axis;
+      }
+    }
+
+    depth /= FlatMath.length(normal);
+    normal = FlatMath.normalize(normal);
+
+    let centerA = this.arithmeticMean(verticesA);
+    let centerB = this.arithmeticMean(verticesB);
+    let direction = centerB.subtractVector(centerA);
+
+    if (FlatMath.dot(direction, normal) < 0) {
+      normal = normal.opositeVector();
+    }
+
+    return { normal, depth };
+  },
+  IntersectCircles: function (c1, rad1, c2, rad2) {
     let normal = nullVector;
     let depth = 0;
 
@@ -195,6 +285,7 @@ class RigidBody2D {
     this.density = density;
   }
 }
+
 //---------------------------------- Game Engine Main Class ----------------------------------
 export class GameEngine {
   constructor() {
@@ -412,7 +503,7 @@ export class GameEngine {
 
   //RigidBody Functionalities
   simulateObjectForces() {
-    //Have a cache so you don t double check
+    //Have a cache so you don't double check
     let cache = new Set();
 
     //Loop Through every object with a rigidBody2D
@@ -421,65 +512,98 @@ export class GameEngine {
       let pathA = this.objectsWithRigidBody2D[i];
       let objectA = this.getObjectPointer(pathA);
 
-      //If object has no colider than continue
+      //If object has no colider than continue since it can t interact with others
       if (!objectA.colider) {
         continue;
       }
 
-      //Loop through every object with circleColider
-      if (!this.objectsWithColider.CircleColider) return;
-      for (let j = 0; j < this.objectsWithColider.CircleColider.length; j++) {
-        //Get the path to objectB
-        let pathB = this.objectsWithColider.CircleColider[j];
+      //Loop through every *shape*Colider list
+      for (const shape in this.objectsWithColider) {
+        let currentColiderObjects = this.objectsWithColider[shape];
 
-        //If the path to both objects are equal it means we are checking the same pair
-        //If the pair is in the cache then we have already checked it but in a different order
-        if (
-          pathA[pathA.length - 1] == pathB[pathB.length - 1] ||
-          cache.has(new Set(pathA[pathA.length - 1], pathB[pathB.length - 1]))
-        ) {
-          continue;
-        } else {
-          cache.add(new Set(pathA[pathA.length - 1], pathB[pathB.length - 1]));
-        }
+        //Loop through objects that have the *shape*Colider
+        for (let j = 0; j < currentColiderObjects.length; j++) {
+          let pathB = this.objectsWithColider[shape][j];
 
-        //Get the objectB
-        let objectB = this.getObjectPointer(pathB);
+          /*If the path to both objects are the same it means we are checking the same object
+          or if the pair is in the cache then we have already checked it*/
 
-        //Find out if the circles intersect ( returns either *false* or *{new FlatVector(), depth}*)
-
-        let intersection = Collision.IntersectCircles(
-          new FlatVector(
-            objectA.transform.position.x,
-            objectA.transform.position.y
-          ),
-          objectA.transform.scale.x / 2,
-          new FlatVector(
-            objectB.transform.position.x,
-            objectB.transform.position.y
-          ),
-          objectB.transform.scale.x / 2
-        );
-
-        if (intersection) {
-          intersection.normal = intersection.normal.multiplyScalar(
-            intersection.depth
-          );
-          if (!objectB.rigidBody2D) {
-            this.moveObject(
-              pathA[pathA.length - 1],
-              intersection.normal.opositeVector()
-            );
+          if (
+            pathA[pathA.length - 1] == pathB[pathB.length - 1] ||
+            cache.has(pathB[pathB.length - 1] + pathA[pathA.length - 1])
+          ) {
             continue;
+          } else {
+            cache.add(pathA[pathA.length - 1] + pathB[pathB.length - 1]);
           }
-          intersection.normal = intersection.normal.divideScalar(2);
 
-          this.moveObject(
-            pathA[pathA.length - 1],
-            intersection.normal.opositeVector()
+          //Get the objectB
+          let objectB = this.getObjectPointer(pathB);
+
+          //Find out if the polygons intersect
+          let polygonIntersection = Collision.IntersectPoligons(
+            objectA.transform.vertices,
+            objectB.transform.vertices
           );
-          this.moveObject(pathB[pathB.length - 1], intersection.normal);
+          this.resolveIntersction(polygonIntersection, objectB, pathA, pathB);
+          //Find out if the circles intersect ( returns either *false* or *{new FlatVector(), depth}*)
+          // let intersection = Collision.IntersectCircles(
+          //   new FlatVector(
+          //     objectA.transform.position.x,
+          //     objectA.transform.position.y
+          //   ),
+          //   objectA.transform.scale.x / 2,
+          //   new FlatVector(
+          //     objectB.transform.position.x,
+          //     objectB.transform.position.y
+          //   ),
+          //   objectB.transform.scale.x / 2
+          // );
+
+          // if (intersection) {
+          //   intersection.normal = intersection.normal.multiplyScalar(
+          //     intersection.depth
+          //   );
+          //   if (!objectB.rigidBody2D) {
+          //     this.moveObject(
+          //       pathA[pathA.length - 1],
+          //       intersection.normal.opositeVector()
+          //     );
+          //     continue;
+          //   }
+          //   intersection.normal = intersection.normal.divideScalar(2);
+
+          //   this.moveObject(
+          //     pathA[pathA.length - 1],
+          //     intersection.normal.opositeVector()
+          //   );
+          //   this.moveObject(pathB[pathB.length - 1], intersection.normal);
+          // }
         }
+      }
+    }
+  }
+  resolveIntersction(intersection, objectB, pathA, pathB) {
+    if (intersection) {
+      intersection.normal = intersection.normal.multiplyScalar(
+        intersection.depth
+      );
+
+      //If objectB doesn t have a rigid body then resolve all the depth to objectA
+      if (!objectB.rigidBody2D) {
+        this.moveObject(
+          pathA[pathA.length - 1],
+          intersection.normal.opositeVector()
+        );
+      } else {
+        //If objectB has have a rigid body then resolve depth to  both of them
+        intersection.normal = intersection.normal.divideScalar(2);
+
+        this.moveObject(
+          pathA[pathA.length - 1],
+          intersection.normal.opositeVector()
+        );
+        this.moveObject(pathB[pathB.length - 1], intersection.normal);
       }
     }
   }
@@ -652,7 +776,6 @@ export class GameEngine {
 
       c.beginPath();
       c.fillStyle = sceneObject.spriteRenderer.color;
-      c.strokeStyle = sceneObject.spriteRenderer.color;
 
       if (sceneObject.spriteRenderer.sprite == 'box') {
         c.moveTo(
@@ -702,7 +825,6 @@ export class GameEngine {
         );
       }
 
-      c.stroke();
       c.fill();
       c.closePath();
     }

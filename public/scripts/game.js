@@ -63,6 +63,7 @@ gameEngine.addSceneObject(
 );
 gameEngine.addSpriteRenderer('Box3', 'Box', '#b2b2b2');
 gameEngine.addBoxColider('Box3');
+gameEngine.addRigidBody2D('Box3', 'static', 1, 0.098, 1);
 
 // Draw objects
 gameEngine.drawObjects();
@@ -102,7 +103,7 @@ window.addEventListener('keyup', (e) => {
   }
 });
 
-let playerSpeed = 5;
+let playerSpeed = 2;
 function update(time) {
   c.fillStyle = '#0f0f0f';
   c.fillRect(0, 0, canvas.width, canvas.height);
@@ -120,8 +121,8 @@ function update(time) {
   }
 
   gameEngine.simulateObjectForces();
-
   gameEngine.drawObjects();
+
   window.requestAnimationFrame(update);
 }
 
