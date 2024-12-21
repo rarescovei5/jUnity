@@ -23,7 +23,7 @@ export class FlatVector {
     this.x = this.x / scalar;
     this.y = this.y / scalar;
   }
-  equal(v) {
+  equals(v) {
     return this.x == v.x && this.y == v.y;
   }
   opositeVector() {
@@ -71,6 +71,8 @@ class Transform {
   }
 
   calculateBoxVertices() {
+    //Reset Previous Vertices
+    this.vertices = [];
     // find FlatVectors for that looks a each point
     let th, phi, v0, v1, v2, v3;
     let sY2 = this.scale.y / 2;
@@ -107,6 +109,8 @@ class Transform {
   }
 
   calculateTriangleVertices() {
+    //Reset Previous Vertices
+    this.vertices = [];
     // find FlatVectors for that looks a each point
     let th, phi, v0, v1, v2;
     let b2 = this.scale.x / 2;
@@ -207,9 +211,9 @@ export class GameEngine {
 
       //Add a tag if it exists else mark it as Untagged
       if (tag !== '') {
-        this.changeTag(name, tag);
+        this.changeObjectTag(name, tag);
       } else {
-        this.changeTag(name, 'Untagged');
+        this.changeObjectTag(name, 'Untagged');
       }
     } else {
       //Add object with *name* to *parent* with compulsory Transform class to parent
@@ -221,14 +225,92 @@ export class GameEngine {
 
       //Add a tag if it exists else mark it as Untagged
       if (tag !== '') {
-        this.changeTag(name, tag);
+        this.changeObjectTag(name, tag);
       } else {
-        this.changeTag(name, 'Untagged');
+        this.changeObjectTag(name, 'Untagged');
       }
     }
   }
 
-  changeTag(name, tag) {
+  moveObject(name, increment = { x, y }) {
+    let path = this.findObjectParent(name, this.objects);
+    if (!path) {
+      throw console.error(
+        `-=- Invalid Name -=- \n Can't increment object because ${name} doesn't exist`
+      );
+    }
+    path.push(name);
+
+    //Get the scene Object
+    let sceneObject = this.getObjectPointer(path);
+
+    //Increment Position
+    sceneObject.transform.position.x += increment.x;
+    sceneObject.transform.position.y += increment.y;
+
+    //Recalculate Vertices
+    if (sceneObject.spriteRenderer.sprite == 'box') {
+      sceneObject.transform.calculateBoxVertices();
+    }
+    if (sceneObject.spriteRenderer.sprite == 'triangle') {
+      sceneObject.transform.calculateTriangleVertices();
+    }
+
+    this.drawObjects();
+  }
+  moveObjectTo(name, newPosition = { x, y }) {
+    let path = this.findObjectParent(name, this.objects);
+    if (!path) {
+      throw console.error(
+        `-=- Invalid Object Name -=- \n Can't change object position because ${name} doesn't exist`
+      );
+    }
+    path.push(name);
+
+    //Get the scene Object
+    let sceneObject = this.getObjectPointer(path);
+
+    //Change Position
+    sceneObject.transform.position.x = newPosition.x;
+    sceneObject.transform.position.y = newPosition.y;
+
+    //Recalculate Vertices
+    if (sceneObject.spriteRenderer.sprite == 'box') {
+      sceneObject.transform.calculateBoxVertices();
+    }
+    if (sceneObject.spriteRenderer.sprite == 'triangle') {
+      sceneObject.transform.calculateTriangleVertices();
+    }
+
+    this.drawObjects();
+  }
+
+  changeObjectTag(name, tag) {
+    //Get the objects with specified *name*
+    let path = this.findObjectParent(name, this.objects);
+    path.push(name);
+    this.getObjectPointer(path).tag = tag;
+
+    //Delete other tag
+    for (const t in this.taggedObjects) {
+      let objectsWithT = this.taggedObjects[t];
+      let tLen = t.length;
+      for (let i = 0; i < tLen; i++) {
+        if (objectsWithT[i] == name) {
+          this.taggedObjects[t].splice(i, 1);
+        }
+      }
+    }
+
+    //If tag exists, push the path to the current object
+    if (this.taggedObjects[tag]) {
+      this.taggedObjects[tag].push(path);
+    } //If tag doesnt exist, initialize it and set it to a list containing the path to the current object
+    else {
+      this.taggedObjects[tag] = [path];
+    }
+  }
+  changeObjectColor(name, tag) {
     //Get the objects with specified *name*
     let path = this.findObjectParent(name, this.objects);
     path.push(name);
@@ -324,16 +406,17 @@ export class GameEngine {
       throw console.error(`-=- Object Name doesn't exist -=-`);
     }
 
-    //Add SpriteRenderer class to object
     path.push(name);
-    this.getObjectPointer(path).spriteRenderer = new SpriteRenderer(
-      shape,
-      color
-    );
+
+    //Get the object with *name*
+    let sceneObject = this.getObjectPointer(path);
+
+    //Add SpriteRenderer class to object
+    sceneObject.spriteRenderer = new SpriteRenderer(shape, color);
     if (shape == 'box') {
-      this.getObjectPointer(path).transform.calculateBoxVertices();
+      sceneObject.transform.calculateBoxVertices();
     } else if (shape == 'triangle') {
-      this.getObjectPointer(path).transform.calculateTriangleVertices();
+      sceneObject.transform.calculateTriangleVertices();
     }
 
     this.objectsWithRender.push(path);
@@ -369,7 +452,6 @@ export class GameEngine {
           sceneObject.transform.vertices[0].y
         );
       } else if (sceneObject.spriteRenderer.sprite == 'triangle') {
-        console.log(sceneObject.transform.vertices);
         c.moveTo(
           sceneObject.transform.vertices[0].x,
           sceneObject.transform.vertices[0].y
