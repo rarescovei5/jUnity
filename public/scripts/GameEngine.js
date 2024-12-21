@@ -27,14 +27,15 @@ class FlatVector {
     let y = this.y / scalar;
     return new FlatVector(x, y);
   }
-  transform(angle, translation = { x: 0, y: 0 }) {
-    let rx =
-      Math.round(Math.cos((angle * Math.PI) / 180) * this.x) -
-      Math.round(Math.sin((angle * Math.PI) / 180) * this.y);
-    let ry =
-      Math.round(Math.sin((angle * Math.PI) / 180) * this.x) +
-      Math.round(Math.cos((angle * Math.PI) / 180) * this.y);
-    return new FlatVector(rx + translation.x, ry + translation.y);
+  transform(transform = { angle: 0, x: 0, y: 0 }) {
+    return new FlatVector(
+      Math.round(Math.cos((transform.angle * Math.PI) / 180) * this.x) -
+        Math.round(Math.sin((transform.angle * Math.PI) / 180) * this.y) +
+        transform.x,
+      Math.round(Math.sin((transform.angle * Math.PI) / 180) * this.x) +
+        Math.round(Math.cos((transform.angle * Math.PI) / 180) * this.y) +
+        transform.y
+    );
   }
   equals(v) {
     return this.x == v.x && this.y == v.y;
@@ -114,12 +115,16 @@ class Transform {
     let top = -bottom;
 
     //Calculate vertices
-    let translation, v0, v1, v2, v3;
-    translation = new FlatVector(this.position.x, this.position.y);
-    v0 = new FlatVector(left, top).transform(this.rotation, translation);
-    v1 = new FlatVector(right, top).transform(this.rotation, translation);
-    v2 = new FlatVector(right, bottom).transform(this.rotation, translation);
-    v3 = new FlatVector(left, bottom).transform(this.rotation, translation);
+    let transform, v0, v1, v2, v3;
+
+    transform = {
+      angle: this.rotation,
+      ...new FlatVector(this.position.x, this.position.y),
+    };
+    v0 = new FlatVector(left, top).transform(transform);
+    v1 = new FlatVector(right, top).transform(transform);
+    v2 = new FlatVector(right, bottom).transform(transform);
+    v3 = new FlatVector(left, bottom).transform(transform);
 
     //Add vertices
     this.vertices[0] = v0;
@@ -422,6 +427,7 @@ export class GameEngine {
       }
 
       //Loop through every object with circleColider
+      if (!this.objectsWithColider.CircleColider) return;
       for (let j = 0; j < this.objectsWithColider.CircleColider.length; j++) {
         //Get the path to objectB
         let pathB = this.objectsWithColider.CircleColider[j];
@@ -530,7 +536,7 @@ export class GameEngine {
     }
   }
 
-  //Methods for changing position
+  //Methods for changing transform properties
   moveObject(name, increment = { x, y }) {
     let path = this.findObjectParent(name, this.objects);
     if (!path) {
@@ -579,9 +585,28 @@ export class GameEngine {
       sceneObject.transform.calculateTriangleVertices();
     }
   }
+  rotateObject(name, angle) {
+    let path = this.findObjectParent(name);
+    if (!path) {
+      throw console.error(
+        `-=- Invalid Name -=- \n Can't increment object because ${name} doesn't exist`
+      );
+    }
+    path.push(name);
+    let sceneObject = this.getObjectPointer(path, this.objects);
+
+    sceneObject.transform.rotation += angle;
+
+    if (sceneObject.spriteRenderer.sprite == 'box') {
+      sceneObject.transform.calculateBoxVertices();
+      console.log(sceneObject.transform.vertices);
+    } else if (sceneObject.spriteRenderer.sprite == 'triangle') {
+      sceneObject.transform.calculateTriangleVertices();
+    }
+  }
 
   //Utility Methods for finding stuff
-  findObjectParent(name, object, path = []) {
+  findObjectParent(name, object = this.objects, path = []) {
     for (const id in object) {
       let sceneObject = object[id];
 

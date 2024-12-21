@@ -17,23 +17,16 @@ c.transform(1, 0, 0, -1, 0, canvas.height);
 let gameEngine = new GameEngine();
 
 // Add *Player* object
-gameEngine.addSceneObject('terrain', { x: 110, y: 110 }, 0, {
-  x: 100,
-  y: 100,
-});
-gameEngine.addSpriteRenderer('terrain', 'box', '#fff');
-
-// Add *Player* object
 gameEngine.addSceneObject('Player', { x: 600, y: windowH - 500 }, 0, {
   x: 100,
   y: 100,
 });
-gameEngine.addSpriteRenderer('Player', 'circle', '#ff0000');
-gameEngine.addCircleColider('Player');
+gameEngine.addSpriteRenderer('Player', 'box', '#ff0000');
+gameEngine.addBoxColider('Player');
 gameEngine.addRigidBody2D('Player', 'static', 1, 0.098, 1);
-// Add *circle1* object
+// Add *Box1* object
 gameEngine.addSceneObject(
-  'circle1',
+  'Box1',
   { x: Math.round(Math.random() * 1400), y: Math.round(Math.random() * 800) },
   0,
   {
@@ -41,12 +34,12 @@ gameEngine.addSceneObject(
     y: 100,
   }
 );
-gameEngine.addSpriteRenderer('circle1', 'circle', '#fff');
-gameEngine.addCircleColider('circle1');
-gameEngine.addRigidBody2D('circle1', 'static', 1, 0.098, 1);
-// Add *circle2* object
+gameEngine.addSpriteRenderer('Box1', 'box', '#fff');
+gameEngine.addBoxColider('Box1');
+gameEngine.addRigidBody2D('Box1', 'static', 1, 0.098, 1);
+// Add *Box2* object
 gameEngine.addSceneObject(
-  'circle2',
+  'Box2',
   { x: Math.round(Math.random() * 1400), y: Math.round(Math.random() * 800) },
   0,
   {
@@ -54,12 +47,13 @@ gameEngine.addSceneObject(
     y: 100,
   }
 );
-gameEngine.addSpriteRenderer('circle2', 'circle', '#fff');
-gameEngine.addCircleColider('circle2');
-gameEngine.addRigidBody2D('circle2', 'static', 1, 0.098, 1);
-// Add *circle3* object
+
+gameEngine.addSpriteRenderer('Box2', 'box', '#fff');
+gameEngine.addBoxColider('Box2');
+gameEngine.addRigidBody2D('Box2', 'static', 1, 0.098, 1);
+// Add *Box3* object
 gameEngine.addSceneObject(
-  'circle3',
+  'Box3',
   { x: Math.round(Math.random() * 1400), y: Math.round(Math.random() * 800) },
   0,
   {
@@ -67,8 +61,8 @@ gameEngine.addSceneObject(
     y: 100,
   }
 );
-gameEngine.addSpriteRenderer('circle3', 'circle', '#b2b2b2');
-gameEngine.addCircleColider('circle3');
+gameEngine.addSpriteRenderer('Box3', 'Box', '#b2b2b2');
+gameEngine.addBoxColider('Box3');
 
 // Draw objects
 gameEngine.drawObjects();
