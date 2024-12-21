@@ -91,6 +91,24 @@ const Collision = {
 
     return [min, max];
   },
+  projectCircle: function (center, radius, axis = new FlatVector()) {
+    let direction = FlatMath.normalize(axis);
+    let directionAndRadius = direction.multiplyScalar(radius);
+
+    let p1 = center.addVector(directionAndRadius);
+    let p2 = center.subtractVector(directionAndRadius);
+
+    let min = FlatMath.dot(p1, axis);
+    let max = FlatMath.dot(p2, axis);
+
+    if (min > max) {
+      let tempMin = min;
+      min = max;
+      max = tempMin;
+    }
+
+    return [min, max];
+  },
   arithmeticMean: function (vertices) {
     let sumX = 0;
     let sumY = 0;
@@ -102,7 +120,86 @@ const Collision = {
 
     return new FlatVector(sumX / vertices.length, sumY / vertices.length);
   },
-  IntersectPoligons: function (verticesA, verticesB) {
+  findClosestPointOnPolygon: function (circleCenter, vertices) {
+    let result = -1;
+    let minDistance = 100000000000000;
+
+    for (let i = 0; i < vertices.length; i++) {
+      let v = vertices[i];
+      let distance = FlatMath.distance(v, circleCenter);
+
+      if (distance < minDistance) {
+        minDistance = distance;
+        result = i;
+      }
+    }
+    return result;
+  },
+  IntersectCirclePolygon: function (circleCenter, circleRadius, vertices) {
+    let normal = nullVector;
+    let depth = 10000000;
+
+    let axis = nullVector;
+    let axisDepth = 0;
+
+    let minA, maxA, minB, maxB;
+
+    for (let i = 0; i < vertices.length; i++) {
+      let va = vertices[i];
+      let vb = vertices[(i + 1) % vertices.length];
+
+      let edge = vb.subtractVector(va);
+      axis = new FlatVector(-edge.y, edge.x);
+
+      [minA, maxA] = this.projectVertices(vertices, axis);
+      [minB, maxB] = this.projectCircle(circleCenter, circleRadius, axis);
+
+      if (minA >= maxB || minB >= maxA) {
+        return false;
+      }
+
+      axisDepth = Math.min(maxB - minA, maxA - minB);
+
+      if (axisDepth < depth) {
+        depth = axisDepth;
+        normal = axis;
+      }
+    }
+    //If it gets to here it means that the polygon intersected the square formed by the circle
+
+    let cpIndex = this.findClosestPointOnPolygon(circleCenter, vertices);
+    let cp = vertices[cpIndex];
+
+    axis = cp.subtractVector(circleCenter);
+
+    [minA, maxA] = this.projectVertices(vertices, axis);
+    [minB, maxB] = this.projectCircle(circleCenter, circleRadius, axis);
+
+    if (minA >= maxB || minB >= maxA) {
+      return false;
+    }
+
+    axisDepth = Math.min(maxB - minA, maxA - minB);
+
+    if (axisDepth < depth) {
+      depth = axisDepth;
+      normal = axis;
+    }
+
+    depth /= FlatMath.length(normal);
+    normal = FlatMath.normalize(normal);
+
+    let polygonCenter = this.arithmeticMean(vertices);
+
+    let direction = polygonCenter.subtractVector(circleCenter);
+
+    if (FlatMath.dot(direction, normal) < 0) {
+      normal = normal.opositeVector();
+    }
+
+    return { normal, depth };
+  },
+  IntersectPolygons: function (verticesA, verticesB) {
     let normal = nullVector;
     let depth = 1000000000;
 
@@ -540,14 +637,32 @@ export class GameEngine {
           //Get the objectB
           let objectB = this.getObjectPointer(pathB);
 
-          //Find out if the polygons intersect
-          let polygonIntersection = Collision.IntersectPoligons(
-            objectA.transform.vertices,
+          //Find out if the polygons intersect Circles
+          let circlePolygonIntersection = Collision.IntersectCirclePolygon(
+            new FlatVector(
+              objectA.transform.position.x,
+              objectA.transform.position.y
+            ),
+            objectA.transform.scale.x / 2,
             objectB.transform.vertices
           );
-          this.resolveIntersction(polygonIntersection, objectB, pathA, pathB);
+
+          this.resolveIntersction(
+            circlePolygonIntersection,
+            objectB,
+            pathA,
+            pathB
+          );
+
+          //Find out if the polygons intersect
+          // let polygonIntersection = Collision.IntersectPolygons(
+          //   objectA.transform.vertices,
+          //   objectB.transform.vertices
+          // );
+          // this.resolveIntersction(polygonIntersection, objectB, pathA, pathB);
+
           //Find out if the circles intersect ( returns either *false* or *{new FlatVector(), depth}*)
-          // let intersection = Collision.IntersectCircles(
+          // let circleIntersection = Collision.IntersectCircles(
           //   new FlatVector(
           //     objectA.transform.position.x,
           //     objectA.transform.position.y
@@ -559,26 +674,7 @@ export class GameEngine {
           //   ),
           //   objectB.transform.scale.x / 2
           // );
-
-          // if (intersection) {
-          //   intersection.normal = intersection.normal.multiplyScalar(
-          //     intersection.depth
-          //   );
-          //   if (!objectB.rigidBody2D) {
-          //     this.moveObject(
-          //       pathA[pathA.length - 1],
-          //       intersection.normal.opositeVector()
-          //     );
-          //     continue;
-          //   }
-          //   intersection.normal = intersection.normal.divideScalar(2);
-
-          //   this.moveObject(
-          //     pathA[pathA.length - 1],
-          //     intersection.normal.opositeVector()
-          //   );
-          //   this.moveObject(pathB[pathB.length - 1], intersection.normal);
-          // }
+          //this.resolveIntersction(circleIntersection, objectB, pathA, pathB);
         }
       }
     }
