@@ -23,7 +23,7 @@ gameEngine.addSceneObject('Player', { x: 600, y: windowH - 500 }, 0, {
 });
 gameEngine.addSpriteRenderer('Player', 'box', '#ff0000');
 gameEngine.addBoxColider('Player');
-gameEngine.addRigidBody2D('Player', 1, 0.098, 1, 1);
+gameEngine.addRigidBody2D('Player', 'dyanmic', 1, 0.098, 1, 1);
 
 // Add *Box1* object
 gameEngine.addSceneObject(
@@ -35,8 +35,9 @@ gameEngine.addSceneObject(
   0,
   { x: 25, y: 25 }
 );
-gameEngine.addSpriteRenderer('Box1', 'box', '#fff');
+gameEngine.addSpriteRenderer('Box1', 'box', '#a2a2a2');
 gameEngine.addBoxColider('Box1');
+gameEngine.addRigidBody2D('Box1', 'static', 1, 0.098, 1, 1);
 
 // Add *t* object
 gameEngine.addSceneObject(
@@ -50,7 +51,7 @@ gameEngine.addSceneObject(
 );
 gameEngine.addSpriteRenderer('t', 'triangle', '#fff');
 gameEngine.addTriangleColider('t');
-gameEngine.addRigidBody2D('t', 1, 0.098, 1, 1);
+gameEngine.addRigidBody2D('t', 'dyanmic', 1, 0.098, 1, 1);
 // Add *c* object
 gameEngine.addSceneObject(
   'c1',
@@ -63,7 +64,7 @@ gameEngine.addSceneObject(
 );
 gameEngine.addSpriteRenderer('c1', 'circle', '#fff');
 gameEngine.addCircleColider('c1');
-gameEngine.addRigidBody2D('c1', 1, 0.098, 1, 1);
+gameEngine.addRigidBody2D('c1', 'dyanmic', 1, 0.098, 1, 1);
 
 // Draw objects
 gameEngine.drawObjects();

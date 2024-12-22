@@ -150,6 +150,7 @@ const Collision = {
 
       let edge = vb.subtractVector(va);
       axis = new FlatVector(-edge.y, edge.x);
+      axis = FlatMath.normalize(axis);
 
       [minA, maxA] = this.projectVertices(vertices, axis);
       [minB, maxB] = this.projectCircle(circleCenter, circleRadius, axis);
@@ -171,6 +172,7 @@ const Collision = {
     let cp = vertices[cpIndex];
 
     axis = cp.subtractVector(circleCenter);
+    axis = FlatMath.normalize(axis);
 
     [minA, maxA] = this.projectVertices(vertices, axis);
     [minB, maxB] = this.projectCircle(circleCenter, circleRadius, axis);
@@ -185,9 +187,6 @@ const Collision = {
       depth = axisDepth;
       normal = axis;
     }
-
-    depth /= FlatMath.length(normal);
-    normal = FlatMath.normalize(normal);
 
     let polygonCenter = this.arithmeticMean(vertices);
 
@@ -209,6 +208,7 @@ const Collision = {
 
       let edge = vb.subtractVector(va);
       let axis = new FlatVector(-edge.y, edge.x);
+      axis = FlatMath.normalize(axis);
 
       let [minA, maxA] = this.projectVertices(verticesA, axis);
       let [minB, maxB] = this.projectVertices(verticesB, axis);
@@ -231,6 +231,7 @@ const Collision = {
 
       let edge = vb.subtractVector(va);
       let axis = new FlatVector(-edge.y, edge.x);
+      axis = FlatMath.normalize(axis);
 
       let [minA, maxA] = this.projectVertices(verticesA, axis);
       let [minB, maxB] = this.projectVertices(verticesB, axis);
@@ -246,9 +247,6 @@ const Collision = {
         normal = axis;
       }
     }
-
-    depth /= FlatMath.length(normal);
-    normal = FlatMath.normalize(normal);
 
     let centerA = this.arithmeticMean(verticesA);
     let centerB = this.arithmeticMean(verticesB);
@@ -363,7 +361,9 @@ class BoxColider {}
 class CircleColider {}
 class TriangleColider {}
 class RigidBody2D {
-  constructor(mass, gravity, density, restitution) {
+  constructor(type, mass, gravity, density, restitution) {
+    this.type = type;
+
     this.mass = mass;
     this.gravity = gravity;
     this.density = density;
@@ -575,7 +575,7 @@ export class GameEngine {
       this.objectsWithColider['TriangleColider'] = [path];
     }
   }
-  addRigidBody2D(name, mass, gravity, restitution, density = 1) {
+  addRigidBody2D(name, type, mass, gravity, restitution, density = 1) {
     //If name doesnt exist return
     let path = this.findObjectParent(name, this.objects);
     if (!path) {
@@ -588,6 +588,7 @@ export class GameEngine {
 
     //Add BoxColider class to object
     sceneObject.rigidBody2D = new RigidBody2D(
+      type,
       mass,
       gravity,
       density,
@@ -740,7 +741,10 @@ export class GameEngine {
     normal = normal.multiplyScalar(depth);
 
     //If objectB doesn t have a rigid body then resolve all the depth to objectA
-    if (!objectB.rigidBody2D) {
+    if (
+      !objectB.rigidBody2D ||
+      objectB.rigidBody2D.type.toLowerCase() === 'static'
+    ) {
       this.moveObject(pathA[pathA.length - 1], normal.opositeVector());
     } else {
       //If objectB has have a rigid body then resolve depth to  both of them
@@ -748,14 +752,17 @@ export class GameEngine {
 
       this.moveObject(pathA[pathA.length - 1], normal.opositeVector());
       this.moveObject(pathB[pathB.length - 1], normal);
-
-      this.calculateIntersectionImpulse(objectA, objectB, normal);
     }
+    this.calculateIntersectionImpulse(objectA, objectB, normal);
   }
   calculateIntersectionImpulse(objectA, objectB, normal) {
     let relativeVelocity = objectB.rigidBody2D.linearVelocity.subtractVector(
       objectA.rigidBody2D.linearVelocity
     );
+
+    if (FlatMath.dot(relativeVelocity, normal) > 0) {
+      return;
+    }
 
     let e = Math.min(
       objectA.rigidBody2D.restitution,
@@ -763,20 +770,32 @@ export class GameEngine {
     );
 
     let j = -(1 + e) * FlatMath.dot(relativeVelocity, normal);
-    j /= 1 / objectA.rigidBody2D.mass + 1 / objectB.rigidBody2D.mass;
+
+    let invA = 1 / objectA.rigidBody2D.mass;
+    let invB = 1 / objectB.rigidBody2D.mass;
+    if (objectA.rigidBody2D.type.toLowerCase() === 'static') {
+      console.log('ceva');
+      invA = 0;
+    } else if (
+      !objectB.rigidBody2D ||
+      objectB.rigidBody2D.type.toLowerCase() === 'static'
+    ) {
+      console.log('ceva');
+
+      invB = 0;
+    }
+    j /= invA + invB;
+
+    let impulse = normal.multiplyScalar(j);
 
     objectA.rigidBody2D.linearVelocity =
       objectA.rigidBody2D.linearVelocity.subtractVector(
-        normal.multiplyScalar(j / objectA.rigidBody2D.mass)
+        impulse.multiplyScalar(invA)
       );
     objectB.rigidBody2D.linearVelocity =
       objectB.rigidBody2D.linearVelocity.addVector(
-        normal.multiplyScalar(j / objectB.rigidBody2D.mass)
+        impulse.multiplyScalar(invB)
       );
-    console.log(
-      objectA.rigidBody2D.linearVelocity,
-      objectB.rigidBody2D.linearVelocity
-    );
   }
   addForce(name, amount = new FlatVector()) {
     let path = this.findObjectParent(name);
@@ -786,10 +805,12 @@ export class GameEngine {
     sceneObject.rigidBody2D.force = amount;
   }
   #useForces(sceneObject) {
+    let acceleration = sceneObject.rigidBody2D.force.divideScalar(
+      sceneObject.rigidBody2D.mass
+    );
+
     sceneObject.rigidBody2D.linearVelocity =
-      sceneObject.rigidBody2D.linearVelocity.addVector(
-        sceneObject.rigidBody2D.force
-      );
+      sceneObject.rigidBody2D.linearVelocity.addVector(acceleration);
 
     sceneObject.transform.position = sceneObject.transform.position.addVector(
       sceneObject.rigidBody2D.linearVelocity
