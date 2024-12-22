@@ -2,7 +2,7 @@
 import { c } from './game.js';
 
 //---------------------------------- Utility Classes ----------------------------------
-class FlatVector {
+export class FlatVector {
   constructor(x, y) {
     this.x = x;
     this.y = y;
@@ -44,7 +44,7 @@ class FlatVector {
     return new FlatVector(-this.x, -this.y);
   }
 }
-const FlatMath = {
+export const FlatMath = {
   clamp: function (value, min, max) {
     if (value < min) {
       return min;
@@ -286,12 +286,11 @@ let nullVector = new FlatVector(0, 0);
 //---------------------------------- Game Engine Property Classes ----------------------------------
 class Transform {
   constructor(position, rotation = 0, scale) {
-    this.position = { x: position.x, y: position.y };
+    this.position = new FlatVector(position.x, position.y);
     this.rotation = rotation;
     this.scale = { x: scale.x, y: scale.y };
 
     this.vertices = [];
-    this.triangles = [];
   }
 
   calculateBoxVertices() {
@@ -318,17 +317,6 @@ class Transform {
     this.vertices[1] = v1;
     this.vertices[2] = v2;
     this.vertices[3] = v3;
-
-    this.createBoxTriangles();
-  }
-
-  createBoxTriangles() {
-    this.triangles[0] = 0;
-    this.triangles[1] = 1;
-    this.triangles[2] = 2;
-    this.triangles[3] = 0;
-    this.triangles[4] = 2;
-    this.triangles[5] = 3;
   }
 
   calculateTriangleVertices() {
@@ -375,13 +363,17 @@ class BoxColider {}
 class CircleColider {}
 class TriangleColider {}
 class RigidBody2D {
-  constructor(mass, gravity, density) {
+  constructor(mass, gravity, density, restitution) {
     this.mass = mass;
     this.gravity = gravity;
     this.density = density;
 
-    this.linearVelocity = 0;
+    this.restitution = restitution;
+
+    this.linearVelocity = nullVector;
     this.rotationalVelocity = 0;
+
+    this.force = nullVector;
   }
 }
 
@@ -583,7 +575,7 @@ export class GameEngine {
       this.objectsWithColider['TriangleColider'] = [path];
     }
   }
-  addRigidBody2D(name, mass, gravity, density = 1) {
+  addRigidBody2D(name, mass, gravity, restitution, density = 1) {
     //If name doesnt exist return
     let path = this.findObjectParent(name, this.objects);
     if (!path) {
@@ -595,7 +587,12 @@ export class GameEngine {
     let sceneObject = this.getObjectPointer(path);
 
     //Add BoxColider class to object
-    sceneObject.rigidBody2D = new RigidBody2D(mass, gravity, density);
+    sceneObject.rigidBody2D = new RigidBody2D(
+      mass,
+      gravity,
+      density,
+      restitution
+    );
 
     this.objectsWithRigidBody2D.push(path);
   }
@@ -604,8 +601,13 @@ export class GameEngine {
   simulateObjectPhysics() {
     //Have a cache so you don't double check
     let cache = new Set();
+    for (let i = 0; i < this.objectsWithRigidBody2D.length; i++) {
+      let path = this.objectsWithRigidBody2D[i];
+      let object = this.getObjectPointer(path);
 
-    //Loop Through every object with a rigidBody2D
+      this.#useForces(object);
+    }
+    //Loop Through every object with a rigidBody2D -- Collisions
     for (let i = 0; i < this.objectsWithRigidBody2D.length; i++) {
       //Get the Path to the objectA and then get the object
       let pathA = this.objectsWithRigidBody2D[i];
@@ -642,7 +644,14 @@ export class GameEngine {
           //Simulate the collisions
           let [normal, depth] = this.doObjectsCollide(objectA, objectB);
           if (normal) {
-            this.resolveIntersection(objectB, pathA, pathB, normal, depth);
+            this.resolveIntersection(
+              objectA,
+              objectB,
+              pathA,
+              pathB,
+              normal,
+              depth
+            );
           }
         }
       }
@@ -727,10 +736,7 @@ export class GameEngine {
 
     return [normal, depth];
   }
-  resolveIntersection(objectB, pathA, pathB, normal, depth) {
-    //Keep in mind objectA is the Main Object here that should resolve the intersection!!!
-
-    console.log(normal);
+  resolveIntersection(objectA, objectB, pathA, pathB, normal, depth) {
     normal = normal.multiplyScalar(depth);
 
     //If objectB doesn t have a rigid body then resolve all the depth to objectA
@@ -742,9 +748,66 @@ export class GameEngine {
 
       this.moveObject(pathA[pathA.length - 1], normal.opositeVector());
       this.moveObject(pathB[pathB.length - 1], normal);
+
+      this.calculateIntersectionImpulse(objectA, objectB, normal);
     }
   }
+  calculateIntersectionImpulse(objectA, objectB, normal) {
+    let relativeVelocity = objectB.rigidBody2D.linearVelocity.subtractVector(
+      objectA.rigidBody2D.linearVelocity
+    );
 
+    let e = Math.min(
+      objectA.rigidBody2D.restitution,
+      objectB.rigidBody2D.restitution
+    );
+
+    let j = -(1 + e) * FlatMath.dot(relativeVelocity, normal);
+    j /= 1 / objectA.rigidBody2D.mass + 1 / objectB.rigidBody2D.mass;
+
+    objectA.rigidBody2D.linearVelocity =
+      objectA.rigidBody2D.linearVelocity.subtractVector(
+        normal.multiplyScalar(j / objectA.rigidBody2D.mass)
+      );
+    objectB.rigidBody2D.linearVelocity =
+      objectB.rigidBody2D.linearVelocity.addVector(
+        normal.multiplyScalar(j / objectB.rigidBody2D.mass)
+      );
+    console.log(
+      objectA.rigidBody2D.linearVelocity,
+      objectB.rigidBody2D.linearVelocity
+    );
+  }
+  addForce(name, amount = new FlatVector()) {
+    let path = this.findObjectParent(name);
+    path.push(name);
+    let sceneObject = this.getObjectPointer(path);
+
+    sceneObject.rigidBody2D.force = amount;
+  }
+  #useForces(sceneObject) {
+    sceneObject.rigidBody2D.linearVelocity =
+      sceneObject.rigidBody2D.linearVelocity.addVector(
+        sceneObject.rigidBody2D.force
+      );
+
+    sceneObject.transform.position = sceneObject.transform.position.addVector(
+      sceneObject.rigidBody2D.linearVelocity
+    );
+
+    sceneObject.transform.rotation +=
+      sceneObject.rigidBody2D.rotationalVelocity;
+
+    sceneObject.rigidBody2D.force = nullVector;
+
+    //Recalculate Vertices
+    if (sceneObject.spriteRenderer.sprite == 'box') {
+      sceneObject.transform.calculateBoxVertices();
+    }
+    if (sceneObject.spriteRenderer.sprite == 'triangle') {
+      sceneObject.transform.calculateTriangleVertices();
+    }
+  }
   //Methods for changing things
   changeObjectTag(name, tag) {
     //Get the objects with specified *name*
@@ -860,7 +923,6 @@ export class GameEngine {
 
     if (sceneObject.spriteRenderer.sprite == 'box') {
       sceneObject.transform.calculateBoxVertices();
-      console.log(sceneObject.transform.vertices);
     } else if (sceneObject.spriteRenderer.sprite == 'triangle') {
       sceneObject.transform.calculateTriangleVertices();
     }
