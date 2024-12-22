@@ -375,8 +375,7 @@ class BoxColider {}
 class CircleColider {}
 class TriangleColider {}
 class RigidBody2D {
-  constructor(type, mass, gravity, density) {
-    this.type = type;
+  constructor(mass, gravity, density) {
     this.mass = mass;
     this.gravity = gravity;
     this.density = density;
@@ -581,7 +580,7 @@ export class GameEngine {
       this.objectsWithColider['TriangleColider'] = [path];
     }
   }
-  addRigidBody2D(name, type, mass, gravity, density = 1) {
+  addRigidBody2D(name, mass, gravity, density = 1) {
     //If name doesnt exist return
     let path = this.findObjectParent(name, this.objects);
     if (!path) {
@@ -593,7 +592,7 @@ export class GameEngine {
     let sceneObject = this.getObjectPointer(path);
 
     //Add BoxColider class to object
-    sceneObject.rigidBody2D = new RigidBody2D(type, mass, gravity, density);
+    sceneObject.rigidBody2D = new RigidBody2D(mass, gravity, density);
 
     this.objectsWithRigidBody2D.push(path);
   }
