@@ -22,7 +22,7 @@ gameEngine.addSceneObject('Player', { x: 600, y: windowH - 500 }, 0, {
   y: 100,
 });
 gameEngine.addSpriteRenderer('Player', 'circle', '#ff0000');
-gameEngine.addBoxColider('Player');
+gameEngine.addCircleColider('Player');
 gameEngine.addRigidBody2D('Player', 'static', 1, 0.098, 1);
 
 // Add *Box1* object
@@ -36,8 +36,21 @@ gameEngine.addSceneObject(
   }
 );
 gameEngine.addSpriteRenderer('Box1', 'box', '#fff');
-gameEngine.addCircleColider('Box1');
+gameEngine.addBoxColider('Box1');
 gameEngine.addRigidBody2D('Box1', 'static', 1, 0.098, 1);
+// Add *t* object
+gameEngine.addSceneObject(
+  't',
+  { x: Math.round(Math.random() * 1400), y: Math.round(Math.random() * 800) },
+  0,
+  {
+    x: 100,
+    y: 100,
+  }
+);
+gameEngine.addSpriteRenderer('t', 'triangle', '#fff');
+gameEngine.addTriangleColider('t');
+gameEngine.addRigidBody2D('t', 'static', 1, 0.098, 1);
 
 // Draw objects
 gameEngine.drawObjects();
@@ -77,7 +90,7 @@ window.addEventListener('keyup', (e) => {
   }
 });
 
-let playerSpeed = 2;
+let playerSpeed = 3;
 function update(time) {
   c.fillStyle = '#0f0f0f';
   c.fillRect(0, 0, canvas.width, canvas.height);
@@ -94,7 +107,7 @@ function update(time) {
     gameEngine.moveObject('Player', { x: playerSpeed, y: 0 });
   }
 
-  gameEngine.simulateObjectForces();
+  gameEngine.simulateObjectCollisions();
   gameEngine.drawObjects();
 
   window.requestAnimationFrame(update);

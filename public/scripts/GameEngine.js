@@ -74,8 +74,8 @@ const FlatMath = {
 };
 const Collision = {
   projectVertices: function (vertices = [], axis = new FlatVector()) {
-    let min = 1000000000000000;
-    let max = -min;
+    let min = Infinity;
+    let max = -Infinity;
 
     for (let i = 0; i < vertices.length; i++) {
       let v = vertices[i];
@@ -122,7 +122,7 @@ const Collision = {
   },
   findClosestPointOnPolygon: function (circleCenter, vertices) {
     let result = -1;
-    let minDistance = 100000000000000;
+    let minDistance = Infinity;
 
     for (let i = 0; i < vertices.length; i++) {
       let v = vertices[i];
@@ -599,7 +599,7 @@ export class GameEngine {
   }
 
   //RigidBody Functionalities
-  simulateObjectForces() {
+  simulateObjectCollisions() {
     //Have a cache so you don't double check
     let cache = new Set();
 
@@ -637,44 +637,73 @@ export class GameEngine {
           //Get the objectB
           let objectB = this.getObjectPointer(pathB);
 
-          //Find out if the polygons intersect Circles
-          let circlePolygonIntersection = Collision.IntersectCirclePolygon(
-            new FlatVector(
-              objectA.transform.position.x,
-              objectA.transform.position.y
-            ),
-            objectA.transform.scale.x / 2,
-            objectB.transform.vertices
-          );
-
-          this.resolveIntersction(
-            circlePolygonIntersection,
-            objectB,
-            pathA,
-            pathB
-          );
-
-          //Find out if the polygons intersect
-          // let polygonIntersection = Collision.IntersectPolygons(
-          //   objectA.transform.vertices,
-          //   objectB.transform.vertices
-          // );
-          // this.resolveIntersction(polygonIntersection, objectB, pathA, pathB);
-
-          //Find out if the circles intersect ( returns either *false* or *{new FlatVector(), depth}*)
-          // let circleIntersection = Collision.IntersectCircles(
-          //   new FlatVector(
-          //     objectA.transform.position.x,
-          //     objectA.transform.position.y
-          //   ),
-          //   objectA.transform.scale.x / 2,
-          //   new FlatVector(
-          //     objectB.transform.position.x,
-          //     objectB.transform.position.y
-          //   ),
-          //   objectB.transform.scale.x / 2
-          // );
-          //this.resolveIntersction(circleIntersection, objectB, pathA, pathB);
+          if (
+            (objectA.colider instanceof BoxColider ||
+              objectA.colider instanceof TriangleColider) &&
+            (objectB.colider instanceof BoxColider ||
+              objectB.colider instanceof TriangleColider)
+          ) {
+            // Find out if the polygons intersect
+            let polygonIntersection = Collision.IntersectPolygons(
+              objectA.transform.vertices,
+              objectB.transform.vertices
+            );
+            this.resolveIntersction(polygonIntersection, objectB, pathA, pathB);
+          } else if (
+            objectA.colider instanceof CircleColider &&
+            objectB.colider instanceof CircleColider
+          ) {
+            // Find out if the circles intersect ( returns either *false* or *{new FlatVector(), depth}*)
+            let circleIntersection = Collision.IntersectCircles(
+              new FlatVector(
+                objectA.transform.position.x,
+                objectA.transform.position.y
+              ),
+              objectA.transform.scale.x / 2,
+              new FlatVector(
+                objectB.transform.position.x,
+                objectB.transform.position.y
+              ),
+              objectB.transform.scale.x / 2
+            );
+            this.resolveIntersction(circleIntersection, objectB, pathA, pathB);
+          } else {
+            // Find out if the polygons intersect Circles
+            if (
+              objectA.colider instanceof BoxColider ||
+              objectA.colider instanceof TriangleColider
+            ) {
+              let circlePolygonIntersection = Collision.IntersectCirclePolygon(
+                new FlatVector(
+                  objectB.transform.position.x,
+                  objectB.transform.position.y
+                ),
+                objectB.transform.scale.x / 2,
+                objectA.transform.vertices
+              );
+              this.resolveIntersction(
+                circlePolygonIntersection,
+                objectA,
+                pathB,
+                pathA
+              );
+            } else {
+              let circlePolygonIntersection = Collision.IntersectCirclePolygon(
+                new FlatVector(
+                  objectA.transform.position.x,
+                  objectA.transform.position.y
+                ),
+                objectA.transform.scale.x / 2,
+                objectB.transform.vertices
+              );
+              this.resolveIntersction(
+                circlePolygonIntersection,
+                objectB,
+                pathA,
+                pathB
+              );
+            }
+          }
         }
       }
     }
