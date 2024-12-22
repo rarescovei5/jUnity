@@ -107,7 +107,7 @@ function update(time) {
     gameEngine.moveObject('Player', { x: playerSpeed, y: 0 });
   }
 
-  gameEngine.simulateObjectCollisions();
+  gameEngine.simulateObjectPhysics();
   gameEngine.drawObjects();
 
   window.requestAnimationFrame(update);
