@@ -61,6 +61,12 @@ export const FlatMath = {
   distance: function (a, b) {
     return Math.sqrt((a.x - b.x) ** 2 + (a.y - b.y) ** 2);
   },
+  lengthSquared: function (v) {
+    return v.x ** 2 + v.y ** 2;
+  },
+  distanceSquared: function (a, b) {
+    return (a.x - b.x) ** 2 + (a.y - b.y) ** 2;
+  },
   normalize: function (v) {
     let len = this.length(v);
     return new FlatVector(v.x / len, v.y / len);
@@ -73,6 +79,31 @@ export const FlatMath = {
   },
 };
 const Collision = {
+  pointSegmentDistance(p, a, b) {
+    let ab = b.subtractVector(a);
+    let ap = p.subtractVector(a);
+
+    let proj = FlatMath.dot(ap, ab);
+    let abLenSq = FlatMath.lengthSquared(ab);
+    let d = proj / abLenSq;
+
+    let cp, distanceSquared;
+
+    if (d <= 0) {
+      cp = a;
+    } else if (d >= 1) {
+      cp = b;
+    } else {
+      cp = a.addVector(ab.multiplyScalar(d));
+    }
+
+    distanceSquared = FlatMath.distanceSquared(p, cp);
+
+    return {
+      cp,
+      distanceSquared,
+    };
+  },
   projectVertices: function (vertices = [], axis = new FlatVector()) {
     let min = Infinity;
     let max = -Infinity;
@@ -355,7 +386,7 @@ const Collision = {
       bodyB.colider instanceof CircleColider
     ) {
       //Both Circles
-      contact1 = this.findContactPoint(
+      contact1 = this.findCPcc(
         bodyA.transform.position,
         bodyA.transform.scale.x / 2,
         bodyB.transform.position
@@ -367,17 +398,54 @@ const Collision = {
         bodyA.colider instanceof TriangleColider
       ) {
         //bodyA polygon bodyB circle
+        contact1 = this.findCPcp(
+          bodyB.transform.position,
+          bodyB.transform.scale.x / 2,
+          bodyA.transform.position,
+          bodyA.transform.vertices
+        );
+        contactCount = 1;
       } else {
         //bodyB polygon bodyA circle
+        contact1 = this.findCPcp(
+          bodyA.transform.position,
+          bodyA.transform.scale.x / 2,
+          bodyB.transform.position,
+          bodyB.transform.vertices
+        );
+        contactCount = 1;
       }
     }
 
     return { contact1, contact2, contactCount };
   },
-  findContactPoint: function (centerA, radiusA, centerB) {
+  findCPcc: function (centerA, radiusA, centerB) {
     let ab = centerB.subtractVector(centerA);
     let dir = FlatMath.normalize(ab);
     let cp = centerA.addVector(dir.multiplyScalar(radiusA));
+    return cp;
+  },
+  findCPcp: function (
+    circleCenter,
+    circleRadius,
+    polygonCenter,
+    polygonVertices
+  ) {
+    let minDistSq = Infinity;
+    let cp = nullVector;
+
+    for (let i = 0; i < polygonVertices.length; i++) {
+      let va = polygonVertices[i];
+      let vb = polygonVertices[(i + 1) % polygonVertices.length];
+
+      let psd = this.pointSegmentDistance(circleCenter, va, vb);
+
+      if (psd.distanceSquared < minDistSq) {
+        minDistSq = psd.distanceSquared;
+        cp = psd.cp;
+      }
+    }
+
     return cp;
   },
 };
@@ -1182,11 +1250,12 @@ export class GameEngine {
 
       c.beginPath();
       c.fillStyle = '#a44a44a';
-      c.strokeStyle = 'red';
 
       c.fillRect(manifold.contact1.x - 4, manifold.contact1.y - 4, 8, 8);
-      c.fill();
-      c.stroke();
+
+      c.strokeStyle = '#fff';
+
+      c.strokeRect(manifold.contact1.x - 4, manifold.contact1.y - 4, 8, 8);
       c.closePath();
     }
   }

@@ -7,3 +7,13 @@
 #canvas {
   display: block;
 }
+
+#avgTime {
+  font-size: 20px;
+  color: #fff;
+
+  position: absolute;
+  top: 24px;
+  left: 50%;
+  transform: translateX(-50%);
+}

@@ -18,8 +18,8 @@ let gameEngine = new GameEngine();
 
 // Add *Player* object
 gameEngine.addSceneObject('Player', { x: 600, y: 600 }, 0, {
-  x: 25,
-  y: 25,
+  x: 75,
+  y: 75,
 });
 gameEngine.addSpriteRenderer('Player', 'box', '#ff0000');
 gameEngine.addBoxColider('Player');
@@ -33,7 +33,7 @@ gameEngine.addRigidBody2D(
 );
 
 //Create bodies
-for (let i = 0; i < 1; i++) {
+for (let i = 0; i < 10; i++) {
   let color;
   let shape;
 
@@ -50,7 +50,6 @@ for (let i = 0; i < 1; i++) {
     color = 'purple';
     shape = 'box';
   }
-  shape = 'circle';
 
   gameEngine.addSceneObject(
     `${i}`,
@@ -60,8 +59,8 @@ for (let i = 0; i < 1; i++) {
     },
     0,
     {
-      x: 25,
-      y: 25,
+      x: 75,
+      y: 75,
     }
   );
   gameEngine.addSpriteRenderer(`${i}`, shape, color);
@@ -206,6 +205,8 @@ let forceMagnitude = 1;
 let mean = 0;
 let i = 1;
 
+let avgTime = document.getElementById('avgTime');
+
 function update(time) {
   if (previousT == null) {
     previousT = time;
@@ -253,7 +254,7 @@ function update(time) {
   gameEngine.drawObjects();
 
   mean += deltaT;
-  console.log(mean / i);
+  avgTime.textContent = (mean / i).toFixed(2);
   i++;
 
   previousT = time;
