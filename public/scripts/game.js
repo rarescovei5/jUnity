@@ -33,7 +33,7 @@ gameEngine.addRigidBody2D(
 );
 
 //Create bodies
-for (let i = 0; i < 1; i++) {
+for (let i = 0; i < 15; i++) {
   let color;
   let shape;
 
@@ -50,12 +50,12 @@ for (let i = 0; i < 1; i++) {
     color = 'purple';
     shape = 'box';
   }
-
   shape = 'circle';
+
   gameEngine.addSceneObject(
     `${i}`,
     {
-      x: 700 + i,
+      x: 700,
       y: 600 + i * 50,
     },
     0,
@@ -109,7 +109,7 @@ let wDown, aDown, dDown, qDown, eDown;
 
 window.addEventListener('keydown', (e) => {
   switch (e.key) {
-    case 'w':
+    case ' ':
       wDown = true;
       break;
     case 'a':
@@ -131,7 +131,7 @@ window.addEventListener('keydown', (e) => {
 });
 window.addEventListener('keyup', (e) => {
   switch (e.key) {
-    case 'w':
+    case ' ':
       wDown = false;
       break;
     case 'a':

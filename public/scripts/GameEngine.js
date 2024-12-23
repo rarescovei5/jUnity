@@ -329,12 +329,44 @@ const Collision = {
   findContactPoints: function (bodyA, bodyB) {
     let contact1 = nullVector;
     let contact2 = nullVector;
-    let contacts = 0;
+    let contactCount = 0;
+
+    if (
+      (bodyA.colider instanceof BoxColider ||
+        bodyA.colider instanceof TriangleColider) &&
+      (bodyB.colider instanceof BoxColider ||
+        bodyB.colider instanceof TriangleColider)
+    ) {
+      //Both polygons
+    } else if (
+      bodyA.colider instanceof CircleColider &&
+      bodyB.colider instanceof CircleColider
+    ) {
+      //Both Circles
+      contact1 = this.findContactPoint(
+        bodyA.transform.position,
+        bodyA.transform.scale.x / 2,
+        bodyB.transform.position
+      );
+      contactCount = 1;
+    } else {
+      if (
+        bodyA.colider instanceof BoxColider ||
+        bodyA.colider instanceof TriangleColider
+      ) {
+        //bodyA polygon bodyB circle
+      } else {
+        //bodyB polygon bodyA circle
+      }
+    }
+
+    return { contact1, contact2, contactCount };
   },
-  findContactPoint: function (centerA, radiusA, centerB, radiusB) {
+  findContactPoint: function (centerA, radiusA, centerB) {
     let ab = centerB.subtractVector(centerA);
     let dir = FlatMath.normalize(ab);
-    cp = centerA.addVector(dir.multiplyScalar(radiusA));
+    let cp = centerA.addVector(dir.multiplyScalar(radiusA));
+    return cp;
   },
 };
 class FlatManifold {
@@ -793,14 +825,16 @@ export class GameEngine {
       );
     }
 
+    let collisionContact = Collision.findContactPoints(objectA, objectB);
+
     let manifold = new FlatManifold(
       objectA,
       objectB,
       normal,
       depth,
-      nullVector,
-      nullVector,
-      0
+      collisionContact.contact1,
+      collisionContact.contact2,
+      collisionContact.contactCount
     );
     this.contactList.push(manifold);
   }
@@ -1111,41 +1145,17 @@ export class GameEngine {
       c.fill();
       c.closePath();
     }
-    for (let i = 0; i < this.objectsWithRender.length; i++) {
-      let sceneObject = this.getObjectPointer(this.objectsWithRender[i]);
+
+    //Drawing these to see if they work
+    for (let i = 0; i < this.contactList.length; i++) {
+      let manifold = this.contactList[i];
 
       c.beginPath();
-      c.strokeStyle = '#fff';
-      c.lineWidth = 2;
-      if (sceneObject.spriteRenderer.sprite == 'box') {
-        c.moveTo(
-          sceneObject.transform.AABB.min.x,
-          sceneObject.transform.AABB.min.y
-        );
-        c.lineTo(
-          sceneObject.transform.AABB.max.x,
-          sceneObject.transform.AABB.max.y
-        );
-      } else if (sceneObject.spriteRenderer.sprite == 'triangle') {
-        c.moveTo(
-          sceneObject.transform.AABB.min.x,
-          sceneObject.transform.AABB.min.y
-        );
-        c.lineTo(
-          sceneObject.transform.AABB.max.x,
-          sceneObject.transform.AABB.max.y
-        );
-      } else if (sceneObject.spriteRenderer.sprite == 'circle') {
-        c.moveTo(
-          sceneObject.transform.AABB.min.x,
-          sceneObject.transform.AABB.min.y
-        );
-        c.lineTo(
-          sceneObject.transform.AABB.max.x,
-          sceneObject.transform.AABB.max.y
-        );
-      }
+      c.fillStyle = '#a44a44a';
+      c.strokeStyle = 'red';
 
+      c.fillRect(manifold.contact1.x - 4, manifold.contact1.y - 4, 8, 8);
+      c.fill();
       c.stroke();
       c.closePath();
     }
