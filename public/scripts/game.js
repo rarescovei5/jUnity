@@ -26,14 +26,14 @@ gameEngine.addBoxColider('Player');
 gameEngine.addRigidBody2D(
   'Player',
   'dyanmic',
-  1,
-  new FlatVector(0, -0.098),
+  10,
+  new FlatVector(0, -0.001),
   0.5,
   1
 );
 
 //Create bodies
-for (let i = 0; i < 20; i++) {
+for (let i = 0; i < 15; i++) {
   let color;
   let shape;
 
@@ -50,11 +50,13 @@ for (let i = 0; i < 20; i++) {
     color = 'purple';
     shape = 'box';
   }
+
+  shape = 'box';
   gameEngine.addSceneObject(
     `${i}`,
     {
-      x: Math.random() * 600 + 600,
-      y: 600 + i * 30 - Math.floor(i / 10) * 300,
+      x: 700 + i,
+      y: 600 + i * 50,
     },
     0,
     {
@@ -73,8 +75,8 @@ for (let i = 0; i < 20; i++) {
   gameEngine.addRigidBody2D(
     `${i}`,
     'dyanmic',
-    1,
-    new FlatVector(0, -0.01),
+    10,
+    new FlatVector(0, -0.001),
     0.5,
     1
   );
@@ -158,8 +160,17 @@ tPath.push('Terrain');
 let playerObj = gameEngine.getObjectPointer(pPath);
 let terrainObj = gameEngine.getObjectPointer(tPath);
 
-let forceMagnitude = 0.1;
+let previousT;
+let forceMagnitude = 1;
 function update(time) {
+  if (previousT == null) {
+    previousT = time;
+    window.requestAnimationFrame(update);
+    return;
+  }
+
+  const deltaT = time - previousT;
+
   c.fillStyle = '#0f0f0f';
   c.fillRect(0, 0, canvas.width, canvas.height);
 
@@ -190,13 +201,14 @@ function update(time) {
 
   if (dy !== 0) {
     let forceDirection = FlatMath.normalize(new FlatVector(dx, dy));
-    let force = forceDirection.multiplyScalar(0.2);
+    let force = forceDirection.multiplyScalar(1.5);
     gameEngine.addForce('Player', force);
   }
 
-  gameEngine.simulateObjectPhysics(1);
+  gameEngine.simulateObjectPhysics(100, deltaT);
   gameEngine.drawObjects();
 
+  previousT = time;
   window.requestAnimationFrame(update);
 }
 

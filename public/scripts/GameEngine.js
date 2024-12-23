@@ -109,17 +109,7 @@ const Collision = {
 
     return [min, max];
   },
-  arithmeticMean: function (vertices) {
-    let sumX = 0;
-    let sumY = 0;
-    for (let i = 0; i < vertices.length; i++) {
-      let v = vertices[i];
-      sumX += v.x;
-      sumY += v.y;
-    }
 
-    return new FlatVector(sumX / vertices.length, sumY / vertices.length);
-  },
   findClosestPointOnPolygon: function (circleCenter, vertices) {
     let result = -1;
     let minDistance = Infinity;
@@ -284,6 +274,17 @@ const Collision = {
     return { normal, depth };
   },
 };
+class FlatManifold {
+  constructor(bodyA, bodyB, normal, depth, contact1, contact2, contactCount) {
+    this.bodyA = bodyA;
+    this.bodyB = bodyB;
+    this.normal = normal;
+    this.depth = depth;
+    this.contact1 = contact1;
+    this.contact2 = contact2;
+    this.contactCount = contactCount;
+  }
+}
 
 let nullVector = new FlatVector(0, 0);
 
@@ -422,6 +423,9 @@ export class GameEngine {
     this.taggedObjects = {};
     this.objectsWithRigidBody2D = [];
     this.objectsWithColider = {};
+
+    //Used for resolving collisions realistically
+    this.contactList = [];
   }
 
   //With this you can add objects to the scene
@@ -631,63 +635,73 @@ export class GameEngine {
   }
 
   //RigidBody Functionalities
-  simulateObjectPhysics(precision) {
+  simulateObjectPhysics(precision, time = 1) {
     precision = FlatMath.clamp(precision, this.minPrecision, this.maxPrecision);
     //Have a cache so you don't double check
     let cache = new Set();
-    for (let i = 0; i < this.objectsWithRigidBody2D.length; i++) {
-      let path = this.objectsWithRigidBody2D[i];
-      let object = this.getObjectPointer(path);
+    for (let it = 0; it < precision; it++) {
+      for (let i = 0; i < this.objectsWithRigidBody2D.length; i++) {
+        let path = this.objectsWithRigidBody2D[i];
+        let object = this.getObjectPointer(path);
 
-      this.#useForces(object, object.rigidBody2D.gravity);
-    }
-    //Loop Through every object with a rigidBody2D -- Collisions
-    for (let i = 0; i < this.objectsWithRigidBody2D.length; i++) {
-      //Get the Path to the objectA and then get the object
-      let pathA = this.objectsWithRigidBody2D[i];
-      let objectA = this.getObjectPointer(pathA);
-
-      //If object has no colider than continue since it can t interact with others
-      if (!objectA.colider) {
-        continue;
+        this.#useForces(object, object.rigidBody2D.gravity, time, precision);
       }
 
-      //Loop through every *shape*Colider list
-      for (const shape in this.objectsWithColider) {
-        let currentColiderObjects = this.objectsWithColider[shape];
+      this.contactList = [];
+      //Loop Through every object with a rigidBody2D -- Collisions
+      for (let i = 0; i < this.objectsWithRigidBody2D.length; i++) {
+        //Get the Path to the objectA and then get the object
+        let pathA = this.objectsWithRigidBody2D[i];
+        let objectA = this.getObjectPointer(pathA);
 
-        //Loop through objects that have the *shape*Colider
-        for (let j = 0; j < currentColiderObjects.length; j++) {
-          let pathB = this.objectsWithColider[shape][j];
+        //If object has no colider than continue since it can t interact with others
+        if (!objectA.colider) {
+          continue;
+        }
 
-          /*If the path to both objects are the same it means we are checking the same object
+        //Loop through every *shape*Colider list
+        for (const shape in this.objectsWithColider) {
+          let currentColiderObjects = this.objectsWithColider[shape];
+
+          //Loop through objects that have the *shape*Colider
+          for (let j = 0; j < currentColiderObjects.length; j++) {
+            let pathB = this.objectsWithColider[shape][j];
+
+            /*If the path to both objects are the same it means we are checking the same object
           or if the pair is in the cache then we have already checked it*/
 
-          if (
-            pathA[pathA.length - 1] == pathB[pathB.length - 1] ||
-            cache.has(pathB[pathB.length - 1] + pathA[pathA.length - 1])
-          ) {
-            continue;
-          } else {
-            cache.add(pathA[pathA.length - 1] + pathB[pathB.length - 1]);
-          }
+            if (
+              pathA[pathA.length - 1] == pathB[pathB.length - 1] ||
+              cache.has(pathB[pathB.length - 1] + pathA[pathA.length - 1])
+            ) {
+              continue;
+            } else {
+              cache.add(pathA[pathA.length - 1] + pathB[pathB.length - 1]);
+            }
 
-          //Get the objectB
-          let objectB = this.getObjectPointer(pathB);
+            //Get the objectB
+            let objectB = this.getObjectPointer(pathB);
 
-          //Simulate the collisions
-          let [normal, depth] = this.doObjectsCollide(objectA, objectB);
-          if (normal) {
-            this.resolveIntersection(
-              objectA,
-              objectB,
-              pathA,
-              pathB,
-              normal,
-              depth
-            );
+            //Simulate the collisions
+            let [normal, depth] = this.doObjectsCollide(objectA, objectB);
+            if (normal) {
+              this.resolveIntersection(
+                objectA,
+                objectB,
+                pathA,
+                pathB,
+                normal,
+                depth
+              );
+            }
           }
         }
+      }
+
+      //Loop Through Contact Manifolds
+      for (let i = 0; i < this.contactList.length; i++) {
+        let manifold = this.contactList[i];
+        this.calculateIntersectionImpulse(manifold);
       }
     }
   }
@@ -788,21 +802,36 @@ export class GameEngine {
       );
     } else {
       //If objectB has have a rigid body then resolve depth to  both of them
-      normal = normal.divideScalar(2);
 
       this.moveObject(
         pathA[pathA.length - 1],
-        normal.multiplyScalar(depth).opositeVector()
+        normal.multiplyScalar(depth).divideScalar(2).opositeVector()
       );
-      this.moveObject(pathB[pathB.length - 1], normal.multiplyScalar(depth));
+      this.moveObject(
+        pathB[pathB.length - 1],
+        normal.divideScalar(2).multiplyScalar(depth)
+      );
     }
-    this.calculateIntersectionImpulse(objectA, objectB, normal);
 
-    //Apply the resulting forces after the impact
+    let manifold = new FlatManifold(
+      objectA,
+      objectB,
+      normal,
+      depth,
+      nullVector,
+      nullVector,
+      0
+    );
+    this.contactList.push(manifold);
   }
-  calculateIntersectionImpulse(objectA, objectB, normal) {
-    let relativeVelocity = objectB.rigidBody2D.linearVelocity.subtractVector(
-      objectA.rigidBody2D.linearVelocity
+  calculateIntersectionImpulse(contact) {
+    let bodyA = contact.bodyA;
+    let bodyB = contact.bodyB;
+    let normal = contact.normal;
+    let depth = contact.depth;
+
+    let relativeVelocity = bodyB.rigidBody2D.linearVelocity.subtractVector(
+      bodyA.rigidBody2D.linearVelocity
     );
 
     if (FlatMath.dot(relativeVelocity, normal) > 0) {
@@ -810,19 +839,19 @@ export class GameEngine {
     }
 
     let e = Math.min(
-      objectA.rigidBody2D.restitution,
-      objectB.rigidBody2D.restitution
+      bodyA.rigidBody2D.restitution,
+      bodyB.rigidBody2D.restitution
     );
 
     let j = -(1 + e) * FlatMath.dot(relativeVelocity, normal);
 
-    let invA = 1 / objectA.rigidBody2D.mass;
-    let invB = 1 / objectB.rigidBody2D.mass;
-    if (objectA.rigidBody2D.type.toLowerCase() === 'static') {
+    let invA = 1 / bodyA.rigidBody2D.mass;
+    let invB = 1 / bodyB.rigidBody2D.mass;
+    if (bodyA.rigidBody2D.type.toLowerCase() === 'static') {
       invA = 0;
     } else if (
-      !objectB.rigidBody2D ||
-      objectB.rigidBody2D.type.toLowerCase() === 'static'
+      !bodyB.rigidBody2D ||
+      bodyB.rigidBody2D.type.toLowerCase() === 'static'
     ) {
       invB = 0;
     }
@@ -830,14 +859,12 @@ export class GameEngine {
 
     let impulse = normal.multiplyScalar(j);
 
-    objectA.rigidBody2D.linearVelocity =
-      objectA.rigidBody2D.linearVelocity.subtractVector(
+    bodyA.rigidBody2D.linearVelocity =
+      bodyA.rigidBody2D.linearVelocity.subtractVector(
         impulse.multiplyScalar(invA)
       );
-    objectB.rigidBody2D.linearVelocity =
-      objectB.rigidBody2D.linearVelocity.addVector(
-        impulse.multiplyScalar(invB)
-      );
+    bodyB.rigidBody2D.linearVelocity =
+      bodyB.rigidBody2D.linearVelocity.addVector(impulse.multiplyScalar(invB));
   }
   addForce(name, amount = new FlatVector()) {
     let path = this.findObjectParent(name);
@@ -848,32 +875,41 @@ export class GameEngine {
 
     sceneObject.rigidBody2D.force = amount;
   }
-  #useForces(sceneObject, gravity) {
+  #useForces(sceneObject, gravity, time, precision) {
     if (sceneObject.rigidBody2D.type === 'static') return;
 
+    time /= precision;
+
+    //Calculate Acceleration
     let acceleration = sceneObject.rigidBody2D.force.divideScalar(
       sceneObject.rigidBody2D.mass
     );
 
+    //Apply a portion of the gravity to the linearVelocity
     sceneObject.rigidBody2D.linearVelocity =
       sceneObject.rigidBody2D.linearVelocity.addVector(
-        gravity.multiplyScalar(sceneObject.rigidBody2D.mass)
+        gravity.multiplyScalar(time)
       );
 
+    //Apply a portion of the acceleration to the linearVelocity
     sceneObject.rigidBody2D.linearVelocity =
-      sceneObject.rigidBody2D.linearVelocity.addVector(acceleration);
+      sceneObject.rigidBody2D.linearVelocity.addVector(
+        acceleration.multiplyScalar(time)
+      );
 
+    //Add the linearVelocity to the the object position
     sceneObject.transform.position = sceneObject.transform.position.addVector(
-      sceneObject.rigidBody2D.linearVelocity
+      sceneObject.rigidBody2D.linearVelocity.multiplyScalar(time)
     );
 
+    //Add the rotationalVelocity to the the object position
     sceneObject.transform.rotation +=
-      sceneObject.rigidBody2D.rotationalVelocity;
+      sceneObject.rigidBody2D.rotationalVelocity * time;
 
+    //Set the object force to 0
     sceneObject.rigidBody2D.force = nullVector;
 
     //Recalculate Vertices
-
     this.#recalculateTransformThings(sceneObject);
   }
   //Methods for changing things
@@ -929,7 +965,7 @@ export class GameEngine {
   }
 
   //Methods for changing transform properties
-  moveObject(name, increment = { x, y }) {
+  moveObject(name, amount = { x, y }) {
     let path = this.findObjectParent(name, this.objects);
     if (!path) {
       throw console.error(
@@ -942,8 +978,8 @@ export class GameEngine {
     let sceneObject = this.getObjectPointer(path);
 
     //Increment Position
-    sceneObject.transform.position.x += increment.x;
-    sceneObject.transform.position.y += increment.y;
+    sceneObject.transform.position =
+      sceneObject.transform.position.addVector(amount);
 
     //Recalculate Vertices
     this.#recalculateTransformThings(sceneObject);
