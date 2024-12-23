@@ -295,6 +295,7 @@ class Transform {
     this.scale = { x: scale.x, y: scale.y };
 
     this.vertices = [];
+    this.AABB = { min: nullVector, max: nullVector };
   }
 
   calculateBoxVertices() {
@@ -321,6 +322,31 @@ class Transform {
     this.vertices[1] = v1;
     this.vertices[2] = v2;
     this.vertices[3] = v3;
+  }
+
+  calculateAABB(shape) {
+    let minX = Infinity;
+    let minY = Infinity;
+    let maxX = -Infinity;
+    let maxY = -Infinity;
+    if (shape == 'box' || shape == 'triangle') {
+      for (let i = 0; i < this.vertices.length; i++) {
+        let v = this.vertices[i];
+
+        if (v.x < minX) minX = v.x;
+        if (v.y < minY) minY = v.y;
+        if (v.x > maxX) maxX = v.x;
+        if (v.y > maxY) maxY = v.y;
+      }
+    } else if (shape == 'circle') {
+      minX = this.position.x - this.scale.x / 2;
+      minY = this.position.y - this.scale.y / 2;
+      maxX = this.position.x + this.scale.x / 2;
+      maxY = this.position.y + this.scale.y / 2;
+    }
+
+    this.AABB.min = new FlatVector(minX, minY);
+    this.AABB.max = new FlatVector(maxX, maxY);
   }
 
   calculateTriangleVertices() {
@@ -387,6 +413,9 @@ class RigidBody2D {
 export class GameEngine {
   constructor() {
     this.objects = {};
+
+    this.minPrecision = 1;
+    this.maxPrecision = 100;
 
     //Variables used for faster computing
     this.objectsWithRender = [];
@@ -507,11 +536,8 @@ export class GameEngine {
 
     //Add SpriteRenderer class to object
     sceneObject.spriteRenderer = new SpriteRenderer(shape, color);
-    if (shape == 'box') {
-      sceneObject.transform.calculateBoxVertices();
-    } else if (shape == 'triangle') {
-      sceneObject.transform.calculateTriangleVertices();
-    }
+    //Recalculate Vertices
+    this.#recalculateTransformThings(sceneObject);
 
     this.objectsWithRender.push(path);
   }
@@ -605,7 +631,8 @@ export class GameEngine {
   }
 
   //RigidBody Functionalities
-  simulateObjectPhysics() {
+  simulateObjectPhysics(precision) {
+    precision = FlatMath.clamp(precision, this.minPrecision, this.maxPrecision);
     //Have a cache so you don't double check
     let cache = new Set();
     for (let i = 0; i < this.objectsWithRigidBody2D.length; i++) {
@@ -846,12 +873,8 @@ export class GameEngine {
     sceneObject.rigidBody2D.force = nullVector;
 
     //Recalculate Vertices
-    if (sceneObject.spriteRenderer.sprite == 'box') {
-      sceneObject.transform.calculateBoxVertices();
-    }
-    if (sceneObject.spriteRenderer.sprite == 'triangle') {
-      sceneObject.transform.calculateTriangleVertices();
-    }
+
+    this.#recalculateTransformThings(sceneObject);
   }
   //Methods for changing things
   changeObjectTag(name, tag) {
@@ -923,12 +946,7 @@ export class GameEngine {
     sceneObject.transform.position.y += increment.y;
 
     //Recalculate Vertices
-    if (sceneObject.spriteRenderer.sprite == 'box') {
-      sceneObject.transform.calculateBoxVertices();
-    }
-    if (sceneObject.spriteRenderer.sprite == 'triangle') {
-      sceneObject.transform.calculateTriangleVertices();
-    }
+    this.#recalculateTransformThings(sceneObject);
   }
   moveObjectTo(name, newPosition = { x, y }) {
     let path = this.findObjectParent(name, this.objects);
@@ -947,12 +965,7 @@ export class GameEngine {
     sceneObject.transform.position.y = newPosition.y;
 
     //Recalculate Vertices
-    if (sceneObject.spriteRenderer.sprite == 'box') {
-      sceneObject.transform.calculateBoxVertices();
-    }
-    if (sceneObject.spriteRenderer.sprite == 'triangle') {
-      sceneObject.transform.calculateTriangleVertices();
-    }
+    this.#recalculateTransformThings(sceneObject);
   }
   rotateObject(name, angle) {
     let path = this.findObjectParent(name);
@@ -966,10 +979,20 @@ export class GameEngine {
 
     sceneObject.transform.rotation += angle;
 
+    //Recalculate Vertices
+    this.#recalculateTransformThings(sceneObject);
+  }
+  #recalculateTransformThings(sceneObject) {
+    //Recalculate Vertices
+
     if (sceneObject.spriteRenderer.sprite == 'box') {
       sceneObject.transform.calculateBoxVertices();
+      sceneObject.transform.calculateAABB(sceneObject.spriteRenderer.sprite);
     } else if (sceneObject.spriteRenderer.sprite == 'triangle') {
       sceneObject.transform.calculateTriangleVertices();
+      sceneObject.transform.calculateAABB(sceneObject.spriteRenderer.sprite);
+    } else if ((sceneObject.spriteRenderer.sprite = 'circle')) {
+      sceneObject.transform.calculateAABB(sceneObject.spriteRenderer.sprite);
     }
   }
 
@@ -1070,6 +1093,44 @@ export class GameEngine {
       }
 
       c.fill();
+      c.closePath();
+    }
+    for (let i = 0; i < this.objectsWithRender.length; i++) {
+      let sceneObject = this.getObjectPointer(this.objectsWithRender[i]);
+
+      c.beginPath();
+      c.strokeStyle = '#fff';
+      c.lineWidth = 2;
+      if (sceneObject.spriteRenderer.sprite == 'box') {
+        c.moveTo(
+          sceneObject.transform.AABB.min.x,
+          sceneObject.transform.AABB.min.y
+        );
+        c.lineTo(
+          sceneObject.transform.AABB.max.x,
+          sceneObject.transform.AABB.max.y
+        );
+      } else if (sceneObject.spriteRenderer.sprite == 'triangle') {
+        c.moveTo(
+          sceneObject.transform.AABB.min.x,
+          sceneObject.transform.AABB.min.y
+        );
+        c.lineTo(
+          sceneObject.transform.AABB.max.x,
+          sceneObject.transform.AABB.max.y
+        );
+      } else if (sceneObject.spriteRenderer.sprite == 'circle') {
+        c.moveTo(
+          sceneObject.transform.AABB.min.x,
+          sceneObject.transform.AABB.min.y
+        );
+        c.lineTo(
+          sceneObject.transform.AABB.max.x,
+          sceneObject.transform.AABB.max.y
+        );
+      }
+
+      c.stroke();
       c.closePath();
     }
   }
