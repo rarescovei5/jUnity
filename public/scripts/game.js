@@ -33,7 +33,7 @@ gameEngine.addRigidBody2D(
 );
 
 //Create bodies
-for (let i = 0; i < 15; i++) {
+for (let i = 0; i < 1; i++) {
   let color;
   let shape;
 
@@ -101,6 +101,46 @@ gameEngine.addRigidBody2D(
   0.5,
   1
 );
+// Add *Box1* object
+gameEngine.addSceneObject(
+  'Terrain2',
+  {
+    x: 500,
+    y: 500,
+  },
+  0,
+  { x: 100, y: 1000 }
+);
+gameEngine.addSpriteRenderer('Terrain2', 'box', 'green');
+gameEngine.addBoxColider('Terrain2');
+gameEngine.addRigidBody2D(
+  'Terrain2',
+  'static',
+  1,
+  new FlatVector(0, -0.098),
+  0.5,
+  1
+);
+// Add *Box1* object
+gameEngine.addSceneObject(
+  'Terrain3',
+  {
+    x: 1500,
+    y: 500,
+  },
+  0,
+  { x: 100, y: 1000 }
+);
+gameEngine.addSpriteRenderer('Terrain3', 'box', 'green');
+gameEngine.addBoxColider('Terrain3');
+gameEngine.addRigidBody2D(
+  'Terrain3',
+  'static',
+  1,
+  new FlatVector(0, -0.098),
+  0.5,
+  1
+);
 // Draw objects
 gameEngine.drawObjects();
 
@@ -162,6 +202,10 @@ let terrainObj = gameEngine.getObjectPointer(tPath);
 
 let previousT;
 let forceMagnitude = 1;
+
+let mean = 0;
+let i = 1;
+
 function update(time) {
   if (previousT == null) {
     previousT = time;
@@ -207,6 +251,10 @@ function update(time) {
 
   gameEngine.simulateObjectPhysics(100, deltaT);
   gameEngine.drawObjects();
+
+  mean += deltaT;
+  console.log(mean / i);
+  i++;
 
   previousT = time;
   window.requestAnimationFrame(update);

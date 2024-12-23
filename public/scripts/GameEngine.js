@@ -325,6 +325,18 @@ const Collision = {
       }
     }
   },
+  intersectAABBs: function (a, b) {
+    if (
+      a.max.x <= b.min.x ||
+      b.max.x <= a.min.x ||
+      a.max.y <= b.min.y ||
+      b.max.y <= a.min.y
+    ) {
+      return false;
+    } else {
+      return true;
+    }
+  },
   //Point of Collision stuff
   findContactPoints: function (bodyA, bodyB) {
     let contact1 = nullVector;
@@ -776,6 +788,24 @@ export class GameEngine {
 
             //Get the objectB
             let objectB = this.getObjectPointer(pathB);
+
+            //If they are both static continute since they can t interact with eachother
+            if (
+              objectA.rigidBody2D.type == 'static' &&
+              objectB.rigidBody2D.type == 'static'
+            ) {
+              continue;
+            }
+
+            //Simpler test than the collision, we are checking if their axis aligned hitboxes collide
+            if (
+              !Collision.intersectAABBs(
+                objectA.transform.AABB,
+                objectB.transform.AABB
+              )
+            ) {
+              continue;
+            }
 
             //Simulate the collisions
             let collision = Collision.doObjectsCollide(objectA, objectB);
