@@ -17,54 +17,41 @@ c.transform(1, 0, 0, -1, 0, canvas.height);
 let gameEngine = new GameEngine();
 
 // Add *Player* object
-gameEngine.addSceneObject('Player', { x: 600, y: windowH - 500 }, 0, {
+gameEngine.addSceneObject('Player', { x: 600, y: 600 }, 0, {
   x: 25,
   y: 25,
 });
-gameEngine.addSpriteRenderer('Player', 'box', '#ff0000');
-gameEngine.addBoxColider('Player');
-gameEngine.addRigidBody2D('Player', 'dyanmic', 1, 0.098, 1, 1);
+gameEngine.addSpriteRenderer('Player', 'circle', '#ff0000');
+gameEngine.addCircleColider('Player');
+gameEngine.addRigidBody2D(
+  'Player',
+  'dyanmic',
+  1,
+  new FlatVector(0, -0.098),
+  0.5,
+  1
+);
 
 // Add *Box1* object
 gameEngine.addSceneObject(
   'Box1',
   {
-    x: Math.round(Math.random() * 1000) + 100,
-    y: Math.round(Math.random() * 800) + 20,
+    x: windowW / 2,
+    y: 50,
   },
   0,
-  { x: 25, y: 25 }
+  { x: 1000, y: 200 }
 );
-gameEngine.addSpriteRenderer('Box1', 'box', '#a2a2a2');
+gameEngine.addSpriteRenderer('Box1', 'box', 'green');
 gameEngine.addBoxColider('Box1');
-gameEngine.addRigidBody2D('Box1', 'static', 1, 0.098, 1, 1);
-
-// Add *t* object
-gameEngine.addSceneObject(
-  't',
-  {
-    x: Math.round(Math.random() * 1000) + 100,
-    y: Math.round(Math.random() * 800) + 20,
-  },
-  0,
-  { x: 25, y: 25 }
+gameEngine.addRigidBody2D(
+  'Box1',
+  'static',
+  1,
+  new FlatVector(0, -0.098),
+  0.5,
+  1
 );
-gameEngine.addSpriteRenderer('t', 'triangle', '#fff');
-gameEngine.addTriangleColider('t');
-gameEngine.addRigidBody2D('t', 'dyanmic', 1, 0.098, 1, 1);
-// Add *c* object
-gameEngine.addSceneObject(
-  'c1',
-  {
-    x: Math.round(Math.random() * 1000) + 100,
-    y: Math.round(Math.random() * 800) + 20,
-  },
-  0,
-  { x: 25, y: 25 }
-);
-gameEngine.addSpriteRenderer('c1', 'circle', '#fff');
-gameEngine.addCircleColider('c1');
-gameEngine.addRigidBody2D('c1', 'dyanmic', 1, 0.098, 1, 1);
 
 // Draw objects
 gameEngine.drawObjects();

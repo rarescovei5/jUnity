@@ -135,7 +135,12 @@ const Collision = {
     }
     return result;
   },
-  IntersectCirclePolygon: function (circleCenter, circleRadius, vertices) {
+  IntersectCirclePolygon: function (
+    circleCenter,
+    circleRadius,
+    polygonCenter,
+    vertices
+  ) {
     let normal = nullVector;
     let depth = 10000000;
 
@@ -188,7 +193,9 @@ const Collision = {
       normal = axis;
     }
 
-    let polygonCenter = this.arithmeticMean(vertices);
+    if (!polygonCenter) {
+      polygonCenter = this.arithmeticMean(vertices);
+    }
 
     let direction = polygonCenter.subtractVector(circleCenter);
 
@@ -198,7 +205,7 @@ const Collision = {
 
     return { normal, depth };
   },
-  IntersectPolygons: function (verticesA, verticesB) {
+  IntersectPolygons: function (centerA, verticesA, centerB, verticesB) {
     let normal = nullVector;
     let depth = 1000000000;
 
@@ -247,9 +254,8 @@ const Collision = {
         normal = axis;
       }
     }
-
-    let centerA = this.arithmeticMean(verticesA);
-    let centerB = this.arithmeticMean(verticesB);
+    if (!centerA) centerA = this.arithmeticMean(verticesA);
+    if (!centerB) centerB = this.arithmeticMean(verticesB);
     let direction = centerB.subtractVector(centerA);
 
     if (FlatMath.dot(direction, normal) < 0) {
@@ -606,7 +612,7 @@ export class GameEngine {
       let path = this.objectsWithRigidBody2D[i];
       let object = this.getObjectPointer(path);
 
-      this.#useForces(object);
+      this.#useForces(object, object.rigidBody2D.gravity);
     }
     //Loop Through every object with a rigidBody2D -- Collisions
     for (let i = 0; i < this.objectsWithRigidBody2D.length; i++) {
@@ -669,7 +675,9 @@ export class GameEngine {
     ) {
       // Find out if the polygons intersect
       let polygonIntersection = Collision.IntersectPolygons(
+        objectA.transform.position,
         objectA.transform.vertices,
+        objectB.transform.position,
         objectB.transform.vertices
       );
 
@@ -711,6 +719,7 @@ export class GameEngine {
             objectB.transform.position.y
           ),
           objectB.transform.scale.x / 2,
+          objectA.transform.position,
           objectA.transform.vertices
         );
 
@@ -725,6 +734,7 @@ export class GameEngine {
             objectA.transform.position.y
           ),
           objectA.transform.scale.x / 2,
+          objectB.transform.position,
           objectB.transform.vertices
         );
 
@@ -738,22 +748,30 @@ export class GameEngine {
     return [normal, depth];
   }
   resolveIntersection(objectA, objectB, pathA, pathB, normal, depth) {
-    normal = normal.multiplyScalar(depth);
-
-    //If objectB doesn t have a rigid body then resolve all the depth to objectA
+    //Move them outside of each other so they don t collide anymore
     if (
       !objectB.rigidBody2D ||
       objectB.rigidBody2D.type.toLowerCase() === 'static'
     ) {
-      this.moveObject(pathA[pathA.length - 1], normal.opositeVector());
+      //If objectB doesn t have a rigid body then resolve all the depth to objectA
+
+      this.moveObject(
+        pathA[pathA.length - 1],
+        normal.multiplyScalar(depth).opositeVector()
+      );
     } else {
       //If objectB has have a rigid body then resolve depth to  both of them
       normal = normal.divideScalar(2);
 
-      this.moveObject(pathA[pathA.length - 1], normal.opositeVector());
-      this.moveObject(pathB[pathB.length - 1], normal);
+      this.moveObject(
+        pathA[pathA.length - 1],
+        normal.multiplyScalar(depth).opositeVector()
+      );
+      this.moveObject(pathB[pathB.length - 1], normal.multiplyScalar(depth));
     }
     this.calculateIntersectionImpulse(objectA, objectB, normal);
+
+    //Apply the resulting forces after the impact
   }
   calculateIntersectionImpulse(objectA, objectB, normal) {
     let relativeVelocity = objectB.rigidBody2D.linearVelocity.subtractVector(
@@ -774,14 +792,11 @@ export class GameEngine {
     let invA = 1 / objectA.rigidBody2D.mass;
     let invB = 1 / objectB.rigidBody2D.mass;
     if (objectA.rigidBody2D.type.toLowerCase() === 'static') {
-      console.log('ceva');
       invA = 0;
     } else if (
       !objectB.rigidBody2D ||
       objectB.rigidBody2D.type.toLowerCase() === 'static'
     ) {
-      console.log('ceva');
-
       invB = 0;
     }
     j /= invA + invB;
@@ -802,12 +817,21 @@ export class GameEngine {
     path.push(name);
     let sceneObject = this.getObjectPointer(path);
 
+    if (sceneObject.rigidBody2D.type === 'static') return;
+
     sceneObject.rigidBody2D.force = amount;
   }
-  #useForces(sceneObject) {
+  #useForces(sceneObject, gravity) {
+    if (sceneObject.rigidBody2D.type === 'static') return;
+
     let acceleration = sceneObject.rigidBody2D.force.divideScalar(
       sceneObject.rigidBody2D.mass
     );
+
+    sceneObject.rigidBody2D.linearVelocity =
+      sceneObject.rigidBody2D.linearVelocity.addVector(
+        gravity.multiplyScalar(sceneObject.rigidBody2D.mass)
+      );
 
     sceneObject.rigidBody2D.linearVelocity =
       sceneObject.rigidBody2D.linearVelocity.addVector(acceleration);
