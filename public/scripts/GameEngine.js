@@ -281,7 +281,7 @@ const Collision = {
         objectB.colider instanceof TriangleColider)
     ) {
       // Find out if the polygons intersect
-      return Collision.IntersectPolygons(
+      return this.IntersectPolygons(
         objectA.transform.position,
         objectA.transform.vertices,
         objectB.transform.position,
@@ -292,7 +292,7 @@ const Collision = {
       objectB.colider instanceof CircleColider
     ) {
       // Find out if the circles intersect ( returns either *false* or *{new FlatVector(), depth}*)
-      return Collision.IntersectCircles(
+      return this.IntersectCircles(
         new FlatVector(
           objectA.transform.position.x,
           objectA.transform.position.y
@@ -310,7 +310,7 @@ const Collision = {
         objectA.colider instanceof BoxColider ||
         objectA.colider instanceof TriangleColider
       ) {
-        return Collision.IntersectCirclePolygon(
+        return this.IntersectCirclePolygon(
           new FlatVector(
             objectB.transform.position.x,
             objectB.transform.position.y
@@ -320,7 +320,7 @@ const Collision = {
           objectA.transform.vertices
         );
       } else {
-        return Collision.IntersectCirclePolygon(
+        return this.IntersectCirclePolygon(
           new FlatVector(
             objectA.transform.position.x,
             objectA.transform.position.y
