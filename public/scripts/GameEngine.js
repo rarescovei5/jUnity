@@ -293,15 +293,9 @@ const Collision = {
     ) {
       // Find out if the circles intersect ( returns either *false* or *{new FlatVector(), depth}*)
       return this.IntersectCircles(
-        new FlatVector(
-          objectA.transform.position.x,
-          objectA.transform.position.y
-        ),
+        objectA.transform.position,
         objectA.transform.scale.x / 2,
-        new FlatVector(
-          objectB.transform.position.x,
-          objectB.transform.position.y
-        ),
+        objectB.transform.position,
         objectB.transform.scale.x / 2
       );
     } else {
@@ -310,21 +304,20 @@ const Collision = {
         objectA.colider instanceof BoxColider ||
         objectA.colider instanceof TriangleColider
       ) {
-        return this.IntersectCirclePolygon(
-          new FlatVector(
-            objectB.transform.position.x,
-            objectB.transform.position.y
-          ),
+        let special = this.IntersectCirclePolygon(
+          objectB.transform.position,
           objectB.transform.scale.x / 2,
           objectA.transform.position,
           objectA.transform.vertices
         );
+
+        if (!special) return;
+
+        special.normal = special.normal.opositeVector();
+        return special;
       } else {
         return this.IntersectCirclePolygon(
-          new FlatVector(
-            objectA.transform.position.x,
-            objectA.transform.position.y
-          ),
+          objectA.transform.position,
           objectA.transform.scale.x / 2,
           objectB.transform.position,
           objectB.transform.vertices

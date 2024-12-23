@@ -33,7 +33,7 @@ gameEngine.addRigidBody2D(
 );
 
 //Create bodies
-for (let i = 0; i < 15; i++) {
+for (let i = 0; i < 1; i++) {
   let color;
   let shape;
 
@@ -51,7 +51,7 @@ for (let i = 0; i < 15; i++) {
     shape = 'box';
   }
 
-  shape = 'box';
+  shape = 'circle';
   gameEngine.addSceneObject(
     `${i}`,
     {
