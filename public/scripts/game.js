@@ -33,21 +33,21 @@ gameEngine.addRigidBody2D(
 );
 
 //Create bodies
-for (let i = 0; i < 10; i++) {
+for (let i = 0; i < 20; i++) {
   let color;
   let shape;
 
+  color = `hsl(${Math.random() * 360}deg,${Math.random() * 70 + 10}%,${
+    Math.random() * 40 + 10
+  }%)`;
+
   if (i % 4 == 0) {
-    color = 'red';
     shape = 'triangle';
   } else if (i % 4 == 1) {
-    color = 'blue';
     shape = 'box';
   } else if (i % 4 == 2) {
-    color = 'yellow';
     shape = 'circle';
   } else if (i % 4 == 3) {
-    color = 'purple';
     shape = 'box';
   }
 
@@ -63,6 +63,7 @@ for (let i = 0; i < 10; i++) {
       y: 75,
     }
   );
+
   gameEngine.addSpriteRenderer(`${i}`, shape, color);
   if (shape == 'box') {
     gameEngine.addBoxColider(`${i}`);

@@ -77,6 +77,12 @@ export const FlatMath = {
   cross: function (a, b) {
     return a.x * b.y - a.y * b.x;
   },
+  aproximatelyEqual(a, b) {
+    return Math.abs(a - b) < 0.001;
+  },
+  vAproximatelyEqual(a, b) {
+    return this.aproximatelyEqual(a.x, b.x) && this.aproximatelyEqual(a.y, b.y);
+  },
 };
 const Collision = {
   pointSegmentDistance(p, a, b) {
@@ -381,6 +387,15 @@ const Collision = {
         bodyB.colider instanceof TriangleColider)
     ) {
       //Both polygons
+
+      let result = this.findCPpp(
+        bodyA.transform.vertices,
+        bodyB.transform.vertices
+      );
+      contact1 = result.contact1;
+      contact2 = result.contact2;
+
+      contactCount = result.contactCount;
     } else if (
       bodyA.colider instanceof CircleColider &&
       bodyB.colider instanceof CircleColider
@@ -447,6 +462,59 @@ const Collision = {
     }
 
     return cp;
+  },
+  findCPpp: function (verticesA, verticesB) {
+    let contact1 = nullVector;
+    let contact2 = nullVector;
+    let contactCount = 0;
+
+    let minDistSq = Infinity;
+
+    for (let i = 0; i < verticesA.length; i++) {
+      let p = verticesA[i];
+
+      for (let j = 0; j < verticesB.length; j++) {
+        let va = verticesB[j];
+        let vb = verticesB[(j + 1) % verticesB.length];
+
+        let psd = this.pointSegmentDistance(p, va, vb);
+
+        if (psd.distanceSquared == minDistSq) {
+          if (FlatMath.vAproximatelyEqual(psd.cp, contact1)) continue;
+
+          contact2 = psd.cp;
+          contactCount = 2;
+        } else if (psd.distanceSquared < minDistSq) {
+          minDistSq = psd.distanceSquared;
+          contactCount = 1;
+          contact1 = psd.cp;
+        }
+      }
+    }
+
+    for (let i = 0; i < verticesB.length; i++) {
+      let p = verticesB[i];
+
+      for (let j = 0; j < verticesA.length; j++) {
+        let va = verticesA[j];
+        let vb = verticesA[(j + 1) % verticesA.length];
+
+        let psd = this.pointSegmentDistance(p, va, vb);
+
+        if (psd.distanceSquared == minDistSq) {
+          if (FlatMath.vAproximatelyEqual(psd.cp, contact1)) continue;
+
+          contact2 = psd.cp;
+          contactCount = 2;
+        } else if (psd.distanceSquared < minDistSq) {
+          minDistSq = psd.distanceSquared;
+          contactCount = 1;
+          contact1 = psd.cp;
+        }
+      }
+    }
+
+    return { contact1, contact2, contactCount };
   },
 };
 class FlatManifold {
@@ -1250,12 +1318,16 @@ export class GameEngine {
 
       c.beginPath();
       c.fillStyle = '#a44a44a';
-
-      c.fillRect(manifold.contact1.x - 4, manifold.contact1.y - 4, 8, 8);
-
       c.strokeStyle = '#fff';
 
-      c.strokeRect(manifold.contact1.x - 4, manifold.contact1.y - 4, 8, 8);
+      if (manifold.contact1 !== nullVector) {
+        c.fillRect(manifold.contact1.x - 4, manifold.contact1.y - 4, 8, 8);
+        c.strokeRect(manifold.contact1.x - 4, manifold.contact1.y - 4, 8, 8);
+      }
+      if (manifold.contact2 !== nullVector) {
+        c.fillRect(manifold.contact2.x - 4, manifold.contact2.y - 4, 8, 8);
+        c.strokeRect(manifold.contact2.x - 4, manifold.contact2.y - 4, 8, 8);
+      }
       c.closePath();
     }
   }
