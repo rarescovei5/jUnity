@@ -16,192 +16,137 @@ c.transform(1, 0, 0, -1, 0, canvas.height);
 //"We have Unity at home" ahh
 let gameEngine = new GameEngine();
 
-// Add *Player* object
-gameEngine.addSceneObject('Player', { x: 600, y: 600 }, 0, {
-  x: 75,
-  y: 75,
+let elasticity = 0.5;
+gameEngine.addSceneObject('t1', { x: windowW / 2, y: 100 }, 0, {
+  x: 1000,
+  y: 50,
 });
-gameEngine.addSpriteRenderer('Player', 'box', '#ff0000');
-gameEngine.addBoxColider('Player');
+gameEngine.addSpriteRenderer('t1', 'box', 'green');
+gameEngine.addColider('t1', 'box');
 gameEngine.addRigidBody2D(
-  'Player',
-  'dyanmic',
+  't1',
+  'static',
   10,
   new FlatVector(0, -0.001),
-  0.5,
+  elasticity,
   1
 );
 
-//Create bodies
-for (let i = 0; i < 20; i++) {
-  let color;
-  let shape;
-
-  color = `hsl(${Math.random() * 360}deg,${Math.random() * 70 + 10}%,${
-    Math.random() * 40 + 10
-  }%)`;
-
-  if (i % 4 == 0) {
-    shape = 'triangle';
-  } else if (i % 4 == 1) {
-    shape = 'box';
-  } else if (i % 4 == 2) {
-    shape = 'circle';
-  } else if (i % 4 == 3) {
-    shape = 'box';
-  }
-
-  gameEngine.addSceneObject(
-    `${i}`,
-    {
-      x: 700,
-      y: 600 + i * 50,
-    },
-    0,
-    {
-      x: 75,
-      y: 75,
-    }
-  );
-
-  gameEngine.addSpriteRenderer(`${i}`, shape, color);
-  if (shape == 'box') {
-    gameEngine.addBoxColider(`${i}`);
-  } else if (shape == 'triangle') {
-    gameEngine.addTriangleColider(`${i}`);
-  } else {
-    gameEngine.addCircleColider(`${i}`);
-  }
-  gameEngine.addRigidBody2D(
-    `${i}`,
-    'dyanmic',
-    10,
-    new FlatVector(0, -0.001),
-    0.5,
-    1
-  );
-}
-// Add *Box1* object
-gameEngine.addSceneObject(
-  'Terrain',
-  {
-    x: windowW / 2,
-    y: 150,
-  },
-  0,
-  { x: 1000, y: 100 }
-);
-gameEngine.addSpriteRenderer('Terrain', 'box', 'green');
-gameEngine.addBoxColider('Terrain');
+gameEngine.addSceneObject('t2', { x: 700, y: 500 }, -15, {
+  x: 600,
+  y: 50,
+});
+gameEngine.addSpriteRenderer('t2', 'box', 'green');
+gameEngine.addColider('t2', 'box');
 gameEngine.addRigidBody2D(
-  'Terrain',
+  't2',
   'static',
-  1,
-  new FlatVector(0, -0.098),
-  0.5,
+  10,
+  new FlatVector(0, -0.001),
+  elasticity,
   1
 );
-// Add *Box1* object
-gameEngine.addSceneObject(
-  'Terrain2',
-  {
-    x: 500,
-    y: 500,
-  },
-  0,
-  { x: 100, y: 1000 }
-);
-gameEngine.addSpriteRenderer('Terrain2', 'box', 'green');
-gameEngine.addBoxColider('Terrain2');
+
+gameEngine.addSceneObject('t3', { x: 1200, y: 700 }, 15, {
+  x: 600,
+  y: 50,
+});
+gameEngine.addSpriteRenderer('t3', 'box', 'green');
+gameEngine.addColider('t3', 'box');
 gameEngine.addRigidBody2D(
-  'Terrain2',
+  't3',
   'static',
-  1,
-  new FlatVector(0, -0.098),
-  0.5,
+  10,
+  new FlatVector(0, -0.001),
+  elasticity,
   1
 );
-// Add *Box1* object
-gameEngine.addSceneObject(
-  'Terrain3',
-  {
-    x: 1500,
-    y: 500,
-  },
-  0,
-  { x: 100, y: 1000 }
-);
-gameEngine.addSpriteRenderer('Terrain3', 'box', 'green');
-gameEngine.addBoxColider('Terrain3');
+
+gameEngine.addSceneObject('t4', { x: 500, y: 600 }, 0, {
+  x: 50,
+  y: 1000,
+});
+gameEngine.addSpriteRenderer('t4', 'box', 'green');
+gameEngine.addColider('t4', 'box');
 gameEngine.addRigidBody2D(
-  'Terrain3',
+  't4',
   'static',
-  1,
-  new FlatVector(0, -0.098),
-  0.5,
+  10,
+  new FlatVector(0, -0.001),
+  elasticity,
   1
 );
+
+gameEngine.addSceneObject('t5', { x: 1450, y: 600 }, 0, {
+  x: 50,
+  y: 1000,
+});
+gameEngine.addSpriteRenderer('t5', 'box', 'green');
+gameEngine.addColider('t5', 'box');
+gameEngine.addRigidBody2D('t5', 'static', 10, new FlatVector(0, -0.001), 0, 1);
+
 // Draw objects
 gameEngine.drawObjects();
 
-//----------------------------------Using the game engine to make a game----------------------------------
-let wDown, aDown, dDown, qDown, eDown;
+let id = 0;
+function drawNewObject(x, y, width, height, shape, color) {
+  gameEngine.addSceneObject(`${id}`, { x: x, y: y }, 0, {
+    x: width,
+    y: height,
+  });
+  gameEngine.addSpriteRenderer(`${id}`, shape, color);
+  gameEngine.addColider(`${id}`, shape);
+  gameEngine.addRigidBody2D(
+    `${id}`,
+    'dynamic',
+    1,
+    new FlatVector(0, -0.05),
+    0.1,
+    1
+  );
 
+  id++;
+}
+
+let shape = 0;
 window.addEventListener('keydown', (e) => {
   switch (e.key) {
-    case ' ':
-      wDown = true;
+    case 'z':
+      shape = 0;
       break;
-    case 'a':
-      aDown = true;
+    case 'x':
+      shape = 1;
       break;
-    case 's':
-      sDown = true;
-      break;
-    case 'd':
-      dDown = true;
-      break;
-    case 'q':
-      qDown = true;
-      break;
-    case 'e':
-      eDown = true;
+    case 'c':
+      shape = 2;
       break;
   }
 });
-window.addEventListener('keyup', (e) => {
-  switch (e.key) {
-    case ' ':
-      wDown = false;
+window.addEventListener('mousedown', (e) => {
+  switch (shape) {
+    case 0:
+      shape = 'circle';
       break;
-    case 'a':
-      aDown = false;
+    case 1:
+      shape = 'box';
       break;
-    case 's':
-      sDown = false;
-      break;
-    case 'd':
-      dDown = false;
-      break;
-    case 'q':
-      qDown = false;
-      break;
-    case 'e':
-      eDown = false;
+    case 2:
+      shape = 'triangle';
       break;
   }
+  drawNewObject(
+    e.clientX,
+    windowH - e.clientY,
+    50,
+    50,
+    shape,
+    `hsl(${Math.random() * 360}deg,100%,50%)`
+  );
 });
 
-let pPath = gameEngine.findObjectParent('Player', gameEngine.objects);
-
-pPath.push('Player');
-let tPath = gameEngine.findObjectParent('Terrain', gameEngine.objects);
-tPath.push('Terrain');
-let playerObj = gameEngine.getObjectPointer(pPath);
-let terrainObj = gameEngine.getObjectPointer(tPath);
+//----------------------------------Using the game engine to make a game----------------------------------
 
 let previousT;
-let forceMagnitude = 1;
 
 let mean = 0;
 let i = 1;
@@ -219,37 +164,6 @@ function update(time) {
 
   c.fillStyle = '#0f0f0f';
   c.fillRect(0, 0, canvas.width, canvas.height);
-
-  let dx = 0;
-  let dy = 0;
-
-  if (wDown) {
-    dy += 10;
-  }
-  if (aDown) {
-    dx--;
-  }
-  if (dDown) {
-    dx++;
-  }
-  if (qDown) {
-    gameEngine.rotateObject('Player', 1);
-  }
-  if (eDown) {
-    gameEngine.rotateObject('Player', -1);
-  }
-
-  if (dx !== 0) {
-    let forceDirection = FlatMath.normalize(new FlatVector(dx, dy));
-    let force = forceDirection.multiplyScalar(forceMagnitude);
-    gameEngine.addForce('Player', force);
-  }
-
-  if (dy !== 0) {
-    let forceDirection = FlatMath.normalize(new FlatVector(dx, dy));
-    let force = forceDirection.multiplyScalar(1.5);
-    gameEngine.addForce('Player', force);
-  }
 
   gameEngine.simulateObjectPhysics(100, deltaT);
   gameEngine.drawObjects();

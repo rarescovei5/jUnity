@@ -29,11 +29,11 @@ export class FlatVector {
   }
   transform(transform = { angle: 0, x: 0, y: 0 }) {
     return new FlatVector(
-      Math.round(Math.cos((transform.angle * Math.PI) / 180) * this.x) -
-        Math.round(Math.sin((transform.angle * Math.PI) / 180) * this.y) +
+      Math.cos((transform.angle * Math.PI) / 180) * this.x -
+        Math.sin((transform.angle * Math.PI) / 180) * this.y +
         transform.x,
-      Math.round(Math.sin((transform.angle * Math.PI) / 180) * this.x) +
-        Math.round(Math.cos((transform.angle * Math.PI) / 180) * this.y) +
+      Math.sin((transform.angle * Math.PI) / 180) * this.x +
+        Math.cos((transform.angle * Math.PI) / 180) * this.y +
         transform.y
     );
   }
@@ -81,7 +81,7 @@ export const FlatMath = {
     return Math.abs(a - b) < 0.001;
   },
   vAproximatelyEqual(a, b) {
-    return this.aproximatelyEqual(a.x, b.x) && this.aproximatelyEqual(a.y, b.y);
+    return this.distanceSquared(a, b) < 0.01;
   },
 };
 const Collision = {
@@ -556,6 +556,7 @@ class Transform {
       angle: this.rotation,
       ...new FlatVector(this.position.x, this.position.y),
     };
+
     v0 = new FlatVector(left, top).transform(transform);
     v1 = new FlatVector(right, top).transform(transform);
     v2 = new FlatVector(right, bottom).transform(transform);
@@ -594,37 +595,28 @@ class Transform {
   }
 
   calculateTriangleVertices() {
-    //Reset Previous Vertices
-    this.vertices = [];
-    // find FlatVectors for that looks a each point
-    let th, phi, v0, v1, v2;
-    let b2 = this.scale.x / 2;
-    let h1 = this.scale.y * (1 / 3);
+    //Initialize directions
+    let left = -this.scale.x / 2;
+    let right = -left;
+    let bottom = -this.scale.y * (1 / 3);
+    let top = this.scale.y * (2 / 3);
 
-    let h2 = this.scale.y * (2 / 3);
-    let h3 = Math.sqrt(h1 ** 2 + b2 ** 2);
+    //Calculate vertices
+    let transform, v0, v1, v2;
 
-    phi = ((90 - this.rotation) * Math.PI) / 180;
-    v0 = new FlatVector(
-      Math.round(Math.cos(phi) * h2) + this.position.x,
-      Math.round(Math.sin(phi) * h2) + this.position.y
-    );
+    transform = {
+      angle: this.rotation,
+      ...new FlatVector(this.position.x, this.position.y),
+    };
 
-    th = Math.atan2(-h1, b2);
-    phi = th - (this.rotation * Math.PI) / 180;
-    v1 = new FlatVector(
-      Math.round(Math.cos(phi) * h3) + this.position.x,
-      Math.round(Math.sin(phi) * h3) + this.position.y
-    );
+    v0 = new FlatVector(0, top).transform(transform);
+    v1 = new FlatVector(right, bottom).transform(transform);
+    v2 = new FlatVector(left, bottom).transform(transform);
 
-    th = Math.atan2(-h1, -b2);
-    phi = th - (this.rotation * Math.PI) / 180;
-    v2 = new FlatVector(
-      Math.round(Math.cos(phi) * h3) + this.position.x,
-      Math.round(Math.sin(phi) * h3) + this.position.y
-    );
-
-    this.vertices.push(v0, v1, v2);
+    //Add vertices
+    this.vertices[0] = v0;
+    this.vertices[1] = v1;
+    this.vertices[2] = v2;
   }
 }
 class SpriteRenderer {
@@ -641,7 +633,12 @@ class RigidBody2D {
     this.type = type;
 
     this.mass = mass;
-    this.gravity = gravity;
+    if (type == 'static') {
+      this.invMass = 0;
+    } else {
+      this.invMass = 1 / mass;
+    }
+    this.gravity = gravity.divideScalar(60);
     this.density = density;
 
     this.restitution = restitution;
@@ -650,6 +647,25 @@ class RigidBody2D {
     this.rotationalVelocity = 0;
 
     this.force = nullVector;
+
+    this.inertia = 0;
+    this.invInertia = 0;
+  }
+  calculateRotationalInertia(shape, width, height) {
+    if (shape instanceof CircleColider) {
+      this.inertia = (1 / 12) * this.mass * width ** 2;
+    } else if (
+      shape instanceof BoxColider ||
+      shape instanceof TriangleColider
+    ) {
+      this.inertia = (1 / 12) * this.mass * (width ** 2 + height ** 2);
+    }
+
+    if (this.type == 'static') {
+      this.invInertia = 0;
+    } else {
+      this.invInertia = 1 / this.inertia;
+    }
   }
 }
 
@@ -854,6 +870,36 @@ export class GameEngine {
       this.objectsWithColider['TriangleColider'] = [path];
     }
   }
+  addColider(name = '', shape = '') {
+    //If name doesnt exist return
+    let path = this.findObjectParent(name, this.objects);
+    if (!path) {
+      throw console.error(`-=- Object Name doesn't exist -=-`);
+    }
+
+    //Get the object with *name*
+    path.push(name);
+    let sceneObject = this.getObjectPointer(path);
+
+    //Add BoxColider class to object
+    if (shape.toLowerCase() == 'triangle') {
+      sceneObject.colider = new TriangleColider();
+    } else if (shape.toLowerCase() == 'box') {
+      sceneObject.colider = new BoxColider();
+    } else if (shape.toLowerCase() == 'circle') {
+      sceneObject.colider = new CircleColider();
+    } else {
+      throw console.error('-=- Invalid Shape Type -=-');
+    }
+
+    //If tag exists, push the path to the current object
+    if (this.objectsWithColider[shape]) {
+      this.objectsWithColider[shape].push(path);
+    } //If tag doesnt exist, initialize it and set it to a list containing the path to the current object
+    else {
+      this.objectsWithColider[shape] = [path];
+    }
+  }
   addRigidBody2D(name, type, mass, gravity, restitution, density = 1) {
     //If name doesnt exist return
     let path = this.findObjectParent(name, this.objects);
@@ -872,6 +918,12 @@ export class GameEngine {
       gravity,
       density,
       restitution
+    );
+
+    sceneObject.rigidBody2D.calculateRotationalInertia(
+      sceneObject.colider,
+      sceneObject.transform.scale.x,
+      sceneObject.transform.scale.y
     );
 
     this.objectsWithRigidBody2D.push(path);
@@ -946,7 +998,7 @@ export class GameEngine {
             //Simulate the collisions
             let collision = Collision.doObjectsCollide(objectA, objectB);
             if (collision) {
-              this.resolveIntersection(
+              this.eliminateOverlap(
                 objectA,
                 objectB,
                 pathA,
@@ -962,35 +1014,40 @@ export class GameEngine {
       //Loop Through Contact Manifolds
       for (let i = 0; i < this.contactList.length; i++) {
         let manifold = this.contactList[i];
-        this.calculateIntersectionImpulse(manifold);
+        this.calculateIntersectionImpulseRotation(manifold);
       }
     }
   }
-  resolveIntersection(objectA, objectB, pathA, pathB, normal, depth) {
+  eliminateOverlap(objectA, objectB, pathA, pathB, normal, depth) {
     //Move them outside of each other so they don t collide anymore
-    if (
-      !objectB.rigidBody2D ||
-      objectB.rigidBody2D.type.toLowerCase() === 'static'
-    ) {
-      //If objectB doesn t have a rigid body then resolve all the depth to objectA
-
-      this.moveObject(
-        pathA[pathA.length - 1],
-        normal.multiplyScalar(depth).opositeVector()
-      );
+    if (!objectA.rigidBody2D.type == 'static') {
+      if (
+        objectB.rigidBody2D ||
+        !objectB.rigidBody2D.type.toLowerCase() === 'static'
+      ) {
+        //Both have dynamic rigidbody and coliders so move them evenly
+        this.moveObject(
+          pathA[pathA.length - 1],
+          normal.multiplyScalar(depth).divideScalar(2).opositeVector()
+        );
+        this.moveObject(
+          pathB[pathB.length - 1],
+          normal.divideScalar(2).multiplyScalar(depth)
+        );
+      } else {
+        this.moveObject(
+          pathA[pathA.length - 1],
+          normal.multiplyScalar(depth).opositeVector()
+        );
+      }
     } else {
-      //If objectB has have a rigid body then resolve depth to  both of them
-
-      this.moveObject(
-        pathA[pathA.length - 1],
-        normal.multiplyScalar(depth).divideScalar(2).opositeVector()
-      );
       this.moveObject(
         pathB[pathB.length - 1],
         normal.divideScalar(2).multiplyScalar(depth)
       );
     }
 
+    //Add the collision data of the two object to contact list so they can be resolved
     let collisionContact = Collision.findContactPoints(objectA, objectB);
 
     let manifold = new FlatManifold(
@@ -1008,7 +1065,6 @@ export class GameEngine {
     let bodyA = contact.bodyA;
     let bodyB = contact.bodyB;
     let normal = contact.normal;
-    let depth = contact.depth;
 
     let relativeVelocity = bodyB.rigidBody2D.linearVelocity.subtractVector(
       bodyA.rigidBody2D.linearVelocity
@@ -1045,6 +1101,104 @@ export class GameEngine {
       );
     bodyB.rigidBody2D.linearVelocity =
       bodyB.rigidBody2D.linearVelocity.addVector(impulse.multiplyScalar(invB));
+  }
+  calculateIntersectionImpulseRotation(contact = new FlatManifold()) {
+    let bodyA = contact.bodyA;
+    let bodyB = contact.bodyB;
+    let normal = contact.normal;
+    let contact1 = contact.contact1;
+    let contact2 = contact.contact2;
+    let contactCount = contact.contactCount;
+
+    let e = Math.min(
+      bodyA.rigidBody2D.restitution,
+      bodyB.rigidBody2D.restitution
+    );
+
+    let contactList = [contact1, contact2];
+    let impulseList = [nullVector, nullVector];
+    let raList = [nullVector, nullVector];
+    let rbList = [nullVector, nullVector];
+
+    for (let i = 0; i < contactCount; i++) {
+      let ra = contactList[i].subtractVector(bodyA.transform.position);
+      let rb = contactList[i].subtractVector(bodyB.transform.position);
+
+      raList[i] = ra;
+      rbList[i] = rb;
+
+      let raPerp = new FlatVector(-ra.y, ra.x);
+      let rbPerp = new FlatVector(-rb.y, rb.x);
+
+      let angularLinearVelocityA = raPerp.multiplyScalar(
+        bodyA.rigidBody2D.rotationalVelocity
+      );
+      let angularLinearVelocityB = rbPerp.multiplyScalar(
+        bodyB.rigidBody2D.rotationalVelocity
+      );
+
+      let relativeVelocity = bodyB.rigidBody2D.linearVelocity
+        .addVector(angularLinearVelocityB)
+        .subtractVector(
+          bodyA.rigidBody2D.linearVelocity.addVector(angularLinearVelocityA)
+        );
+      let contactVelocityMag = FlatMath.dot(relativeVelocity, normal);
+
+      if (contactVelocityMag > 0) {
+        continue;
+      }
+
+      let invA = bodyA.rigidBody2D.invMass;
+      let invB = bodyB.rigidBody2D.invMass;
+
+      let raPerpDotN = FlatMath.dot(raPerp, normal);
+      let rbPerpDotN = FlatMath.dot(rbPerp, normal);
+
+      let j = -(1 + e) * contactVelocityMag;
+
+      let den =
+        invA +
+        invB +
+        raPerpDotN ** 2 * bodyA.rigidBody2D.invInertia +
+        rbPerpDotN ** 2 * bodyB.rigidBody2D.invInertia;
+
+      j /= den;
+      j /= contactCount;
+
+      let impulse = normal.multiplyScalar(j);
+
+      impulseList[i] = impulse;
+    }
+
+    for (let i = 0; i < impulseList.length; i++) {
+      let impulse = impulseList[i];
+
+      let ra = raList[i];
+      let rb = rbList[i];
+
+      let invA = bodyA.rigidBody2D.invMass;
+      let invB = bodyB.rigidBody2D.invMass;
+
+      let invInertiaA = bodyA.rigidBody2D.invInertia;
+      let invInertiaB = bodyB.rigidBody2D.invInertia;
+
+      //Adjust the linear Velocity and rotational Velocity for bodyA
+      bodyA.rigidBody2D.linearVelocity =
+        bodyA.rigidBody2D.linearVelocity.addVector(
+          impulse.opositeVector().multiplyScalar(invA)
+        );
+      bodyA.rigidBody2D.rotationalVelocity +=
+        -FlatMath.cross(ra, impulse) * invInertiaA;
+
+      //Adjust the linear Velocity and rotational Velocity for bodyB
+
+      bodyB.rigidBody2D.linearVelocity =
+        bodyB.rigidBody2D.linearVelocity.addVector(
+          impulse.multiplyScalar(invB)
+        );
+      bodyB.rigidBody2D.rotationalVelocity +=
+        FlatMath.cross(rb, impulse) * invInertiaB;
+    }
   }
   addForce(name, amount = new FlatVector()) {
     let path = this.findObjectParent(name);
@@ -1092,6 +1246,7 @@ export class GameEngine {
     //Recalculate Vertices
     this.#recalculateTransformThings(sceneObject);
   }
+
   //Methods for changing things
   changeObjectTag(name, tag) {
     //Get the objects with specified *name*
@@ -1317,7 +1472,7 @@ export class GameEngine {
       let manifold = this.contactList[i];
 
       c.beginPath();
-      c.fillStyle = '#a44a44a';
+      c.fillStyle = 'hsl(360deg,100%,20%)';
       c.strokeStyle = '#fff';
 
       if (manifold.contact1 !== nullVector) {
