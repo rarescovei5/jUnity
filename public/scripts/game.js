@@ -165,7 +165,7 @@ function update(time) {
   c.fillStyle = '#0f0f0f';
   c.fillRect(0, 0, canvas.width, canvas.height);
 
-  gameEngine.simulateObjectPhysics(100, deltaT);
+  gameEngine.simulateObjectPhysics(20, deltaT);
   gameEngine.drawObjects();
 
   mean += deltaT;

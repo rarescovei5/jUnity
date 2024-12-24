@@ -1468,22 +1468,22 @@ export class GameEngine {
     }
 
     //Drawing these to see if they work
-    for (let i = 0; i < this.contactList.length; i++) {
-      let manifold = this.contactList[i];
+    // for (let i = 0; i < this.contactList.length; i++) {
+    //   let manifold = this.contactList[i];
 
-      c.beginPath();
-      c.fillStyle = 'hsl(360deg,100%,20%)';
-      c.strokeStyle = '#fff';
+    //   c.beginPath();
+    //   c.fillStyle = 'hsl(360deg,100%,20%)';
+    //   c.strokeStyle = '#fff';
 
-      if (manifold.contact1 !== nullVector) {
-        c.fillRect(manifold.contact1.x - 4, manifold.contact1.y - 4, 8, 8);
-        c.strokeRect(manifold.contact1.x - 4, manifold.contact1.y - 4, 8, 8);
-      }
-      if (manifold.contact2 !== nullVector) {
-        c.fillRect(manifold.contact2.x - 4, manifold.contact2.y - 4, 8, 8);
-        c.strokeRect(manifold.contact2.x - 4, manifold.contact2.y - 4, 8, 8);
-      }
-      c.closePath();
-    }
+    //   if (manifold.contact1 !== nullVector) {
+    //     c.fillRect(manifold.contact1.x - 4, manifold.contact1.y - 4, 8, 8);
+    //     c.strokeRect(manifold.contact1.x - 4, manifold.contact1.y - 4, 8, 8);
+    //   }
+    //   if (manifold.contact2 !== nullVector) {
+    //     c.fillRect(manifold.contact2.x - 4, manifold.contact2.y - 4, 8, 8);
+    //     c.strokeRect(manifold.contact2.x - 4, manifold.contact2.y - 4, 8, 8);
+    //   }
+    //   c.closePath();
+    // }
   }
 }
