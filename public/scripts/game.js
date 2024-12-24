@@ -18,7 +18,7 @@ c.transform(1, 0, 0, -1, 0, canvas.height);
 //"We have Unity at home" ahh
 let gameEngine = new GameEngine();
 
-let gravity = new FlatVector(0, -0.02);
+let gravity = new FlatVector(0, -0.01);
 
 let id = 0;
 function createObject(posX, posY, angle, width, height, type) {
@@ -56,7 +56,8 @@ let shape = 'box';
 createObject(windowW / 2, 100, 0, 1000, 50, 'static');
 createObject(windowW / 2 - 500, 100, 0, 100, 1000, 'static');
 createObject(windowW / 2 + 500, 100, 0, 100, 1000, 'static');
-createObject(windowW / 2 - 200, 500, 15, 500, 50, 'static');
+createObject(windowW / 2 + 200, 500, 15, 500, 50, 'static');
+createObject(windowW / 2 - 200, 300, -15, 500, 50, 'static');
 let previousT;
 
 let mean = 0;

@@ -28,13 +28,11 @@ export class FlatVector {
     return new FlatVector(x, y);
   }
   transform(transform = { angle: 0, x: 0, y: 0 }) {
+    let sin = Math.sin((transform.angle * Math.PI) / 180);
+    let cos = Math.cos((transform.angle * Math.PI) / 180);
     return new FlatVector(
-      Math.cos((transform.angle * Math.PI) / 180) * this.x -
-        Math.sin((transform.angle * Math.PI) / 180) * this.y +
-        transform.x,
-      Math.sin((transform.angle * Math.PI) / 180) * this.x +
-        Math.cos((transform.angle * Math.PI) / 180) * this.y +
-        transform.y
+      cos * this.x - sin * this.y + transform.x,
+      sin * this.x + cos * this.y + transform.y
     );
   }
   equals(v) {
@@ -48,26 +46,23 @@ let nullVector = new FlatVector(0, 0);
 
 export const FlatMath = {
   clamp: function (value, min, max) {
-    if (value < min) {
-      return min;
-    }
-    if (value > max) {
-      return max;
-    }
-
-    return value;
+    return Math.max(min, Math.min(max, value));
   },
   length: function (v) {
     return Math.sqrt(v.x ** 2 + v.y ** 2);
   },
   distance: function (a, b) {
-    return Math.sqrt((a.x - b.x) ** 2 + (a.y - b.y) ** 2);
+    const dx = a.x - b.x;
+    const dy = a.y - b.y;
+    return Math.sqrt(dx * dx + dy * dy);
   },
   lengthSquared: function (v) {
     return v.x ** 2 + v.y ** 2;
   },
   distanceSquared: function (a, b) {
-    return (a.x - b.x) ** 2 + (a.y - b.y) ** 2;
+    const dx = a.x - b.x;
+    const dy = a.y - b.y;
+    return dx * dx + dy * dy;
   },
   normalize: function (v) {
     let len = this.length(v);
@@ -83,7 +78,7 @@ export const FlatMath = {
     return Math.abs(a - b) < 0.001;
   },
   vAproximatelyEqual(a, b) {
-    return this.distanceSquared(a, b) < 0.01;
+    return this.distanceSquared(a, b) < 0.001;
   },
 };
 const Collision = {
@@ -588,7 +583,8 @@ class SceneObject {
 
     transform = {
       angle: this.rotation,
-      ...new FlatVector(this.position.x, this.position.y),
+      x: this.position.x,
+      y: this.position.y,
     };
 
     v0 = new FlatVector(left, top).transform(transform);
@@ -614,7 +610,8 @@ class SceneObject {
 
     transform = {
       angle: this.rotation,
-      ...new FlatVector(this.position.x, this.position.y),
+      x: this.position.x,
+      y: this.position.y,
     };
 
     v0 = new FlatVector(0, top).transform(transform);
@@ -654,14 +651,12 @@ class SceneObject {
   #recalculateHitbox() {
     if (this.shape === 'box') {
       this.#calculateBoxVertices();
-      this.#calculateAABB();
     } else if (this.shape === 'triangle') {
       this.#calculateTriangleVertices();
-      this.#calculateAABB();
     } else if (this.shape === 'circle') {
       this.radius = this.width / 2;
-      this.#calculateAABB();
     }
+    this.#calculateAABB();
   }
   rotateObject(name, angle) {
     this.rotation += angle;
@@ -669,14 +664,14 @@ class SceneObject {
     //Recalculate Hitbox
     this.#recalculateHitbox();
   }
-  move(amount = { x, y }) {
+  move(amount) {
     //Increment Position
     this.position = this.position.addVector(amount);
 
     //Recalculate Vertices
     this.#recalculateHitbox();
   }
-  moveTo(newPosition = new FlatVector()) {
+  moveTo(newPosition) {
     this.position = newPosition;
 
     //Recalculate Vertices
@@ -699,7 +694,7 @@ class SceneObject {
       );
     }
   }
-  addForce(amount = new FlatVector()) {
+  addForce(amount) {
     if (this.type === 'static') return;
     this.force = amount;
   }
@@ -968,7 +963,7 @@ export class GameEngine {
       //Loop Through Contact Manifolds
       for (let i = 0; i < this.contactList.length; i++) {
         let manifold = this.contactList[i];
-        this.calculateIntersectionImpulseRotation(manifold);
+        this.calculateIntersectionImpulseRotation(manifold, time, precision);
       }
     }
   }
@@ -1022,7 +1017,7 @@ export class GameEngine {
       impulse.multiplyScalar(bodyB.invMass)
     );
   }
-  calculateIntersectionImpulseRotation(contact = new FlatManifold()) {
+  calculateIntersectionImpulseRotation(contact, time, precision) {
     let bodyA = contact.bodyA;
     let bodyB = contact.bodyB;
     let normal = contact.normal;
@@ -1094,13 +1089,13 @@ export class GameEngine {
         impulse.multiplyScalar(bodyA.invMass).opositeVector()
       );
       bodyA.rotationalVelocity +=
-        -FlatMath.cross(ra, impulse) * bodyA.invInertia;
+        (-FlatMath.cross(ra, impulse) * bodyA.invInertia * time) / precision;
       //Adjust the linear Velocity and rotational Velocity for bodyB
       bodyB.linearVelocity = bodyB.linearVelocity.addVector(
         impulse.multiplyScalar(bodyB.invMass)
       );
       bodyB.rotationalVelocity +=
-        FlatMath.cross(rb, impulse) * bodyB.invInertia;
+        (FlatMath.cross(rb, impulse) * bodyB.invInertia * time) / precision;
     }
   }
   #stepBodies(time, precision) {
