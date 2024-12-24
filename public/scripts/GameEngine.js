@@ -1,7 +1,7 @@
 //Instead of game.js, change the file to where you have your canvas,
 import { c } from './game.js';
 
-//---------------------------------- Utility Classes ----------------------------------
+//-----------------------==----------- Utility Classes ----------------------------------
 export class FlatVector {
   constructor(x, y) {
     this.x = x;
@@ -38,12 +38,14 @@ export class FlatVector {
     );
   }
   equals(v) {
-    return this.x == v.x && this.y == v.y;
+    return this.x === v.x && this.y === v.y;
   }
   opositeVector() {
     return new FlatVector(-this.x, -this.y);
   }
 }
+let nullVector = new FlatVector(0, 0);
+
 export const FlatMath = {
   clamp: function (value, min, max) {
     if (value < min) {
@@ -201,6 +203,7 @@ const Collision = {
     //If it gets to here it means that the polygon intersected the square formed by the circle
 
     let cpIndex = this.findClosestPointOnPolygon(circleCenter, vertices);
+
     let cp = vertices[cpIndex];
 
     axis = cp.subtractVector(circleCenter);
@@ -234,7 +237,7 @@ const Collision = {
   },
   IntersectPolygons: function (centerA, verticesA, centerB, verticesB) {
     let normal = nullVector;
-    let depth = 1000000000;
+    let depth = Infinity;
 
     for (let i = 0; i < verticesA.length; i++) {
       let va = verticesA[i];
@@ -312,40 +315,29 @@ const Collision = {
   },
   doObjectsCollide: function (objectA, objectB) {
     if (
-      (objectA.colider instanceof BoxColider ||
-        objectA.colider instanceof TriangleColider) &&
-      (objectB.colider instanceof BoxColider ||
-        objectB.colider instanceof TriangleColider)
+      (objectA.shape === 'box' || objectA.shape === 'triangle') &&
+      (objectB.shape === 'box' || objectB.shape === 'triangle')
     ) {
-      // Find out if the polygons intersect
       return this.IntersectPolygons(
-        objectA.transform.position,
-        objectA.transform.vertices,
-        objectB.transform.position,
-        objectB.transform.vertices
+        objectA.position,
+        objectA.vertices,
+        objectB.position,
+        objectB.vertices
       );
-    } else if (
-      objectA.colider instanceof CircleColider &&
-      objectB.colider instanceof CircleColider
-    ) {
-      // Find out if the circles intersect ( returns either *false* or *{new FlatVector(), depth}*)
+    } else if (objectA.shape === 'circle' && objectB.shape === 'circle') {
       return this.IntersectCircles(
-        objectA.transform.position,
-        objectA.transform.scale.x / 2,
-        objectB.transform.position,
-        objectB.transform.scale.x / 2
+        objectA.position,
+        objectA.radius,
+        objectB.position,
+        objectB.radius
       );
     } else {
-      // Find out if the polygons intersect Circles
-      if (
-        objectA.colider instanceof BoxColider ||
-        objectA.colider instanceof TriangleColider
-      ) {
+      if (objectA.shape === 'box' || objectA.shape === 'triangle') {
         let special = this.IntersectCirclePolygon(
-          objectB.transform.position,
-          objectB.transform.scale.x / 2,
-          objectA.transform.position,
-          objectA.transform.vertices
+          objectB.position,
+          objectB.radius,
+          objectA.position,
+          objectA.vertices
         );
 
         if (!special) return;
@@ -354,10 +346,10 @@ const Collision = {
         return special;
       } else {
         return this.IntersectCirclePolygon(
-          objectA.transform.position,
-          objectA.transform.scale.x / 2,
-          objectB.transform.position,
-          objectB.transform.vertices
+          objectA.position,
+          objectA.radius,
+          objectB.position,
+          objectB.vertices
         );
       }
     }
@@ -375,59 +367,37 @@ const Collision = {
     }
   },
   //Point of Collision stuff
-  findContactPoints: function (bodyA, bodyB) {
+  findContactPoints: function (objectA, objectB) {
     let contact1 = nullVector;
     let contact2 = nullVector;
     let contactCount = 0;
 
     if (
-      (bodyA.colider instanceof BoxColider ||
-        bodyA.colider instanceof TriangleColider) &&
-      (bodyB.colider instanceof BoxColider ||
-        bodyB.colider instanceof TriangleColider)
+      (objectA.shape === 'box' || objectA.shape === 'triangle') &&
+      (objectB.shape === 'box' || objectB.shape === 'triangle')
     ) {
       //Both polygons
-
-      let result = this.findCPpp(
-        bodyA.transform.vertices,
-        bodyB.transform.vertices
-      );
+      let result = this.findCPpp(objectA.vertices, objectB.vertices);
       contact1 = result.contact1;
       contact2 = result.contact2;
 
       contactCount = result.contactCount;
-    } else if (
-      bodyA.colider instanceof CircleColider &&
-      bodyB.colider instanceof CircleColider
-    ) {
+    } else if (objectA.shape === 'circle' && objectB.shape === 'circle') {
       //Both Circles
       contact1 = this.findCPcc(
-        bodyA.transform.position,
-        bodyA.transform.scale.x / 2,
-        bodyB.transform.position
+        objectA.position,
+        objectA.radius,
+        objectB.position
       );
       contactCount = 1;
     } else {
-      if (
-        bodyA.colider instanceof BoxColider ||
-        bodyA.colider instanceof TriangleColider
-      ) {
-        //bodyA polygon bodyB circle
-        contact1 = this.findCPcp(
-          bodyB.transform.position,
-          bodyB.transform.scale.x / 2,
-          bodyA.transform.position,
-          bodyA.transform.vertices
-        );
+      if (objectA.shape === 'box' || objectA.shape === 'triangle') {
+        //objectA polygon objectB circle
+        contact1 = this.findCPcp(objectB.position, objectA.vertices);
         contactCount = 1;
       } else {
-        //bodyB polygon bodyA circle
-        contact1 = this.findCPcp(
-          bodyA.transform.position,
-          bodyA.transform.scale.x / 2,
-          bodyB.transform.position,
-          bodyB.transform.vertices
-        );
+        //objectB polygon objectA circle
+        contact1 = this.findCPcp(objectA.position, objectB.vertices);
         contactCount = 1;
       }
     }
@@ -440,12 +410,7 @@ const Collision = {
     let cp = centerA.addVector(dir.multiplyScalar(radiusA));
     return cp;
   },
-  findCPcp: function (
-    circleCenter,
-    circleRadius,
-    polygonCenter,
-    polygonVertices
-  ) {
+  findCPcp: function (circleCenter, polygonVertices) {
     let minDistSq = Infinity;
     let cp = nullVector;
 
@@ -479,7 +444,7 @@ const Collision = {
 
         let psd = this.pointSegmentDistance(p, va, vb);
 
-        if (psd.distanceSquared == minDistSq) {
+        if (psd.distanceSquared === minDistSq) {
           if (FlatMath.vAproximatelyEqual(psd.cp, contact1)) continue;
 
           contact2 = psd.cp;
@@ -501,7 +466,7 @@ const Collision = {
 
         let psd = this.pointSegmentDistance(p, va, vb);
 
-        if (psd.distanceSquared == minDistSq) {
+        if (psd.distanceSquared === minDistSq) {
           if (FlatMath.vAproximatelyEqual(psd.cp, contact1)) continue;
 
           contact2 = psd.cp;
@@ -529,24 +494,93 @@ class FlatManifold {
   }
 }
 
-let nullVector = new FlatVector(0, 0);
+//---------------------------------- Scene Object Class ----------------------------------
 
-//---------------------------------- Game Engine Property Classes ----------------------------------
-class Transform {
-  constructor(position, rotation = 0, scale) {
+class SceneObject {
+  constructor(name, position, rotation, width, height) {
+    //Transform Properties
     this.position = new FlatVector(position.x, position.y);
     this.rotation = rotation;
-    this.scale = { x: scale.x, y: scale.y };
+
+    this.width = width;
+    this.height = height;
+    this.radius;
 
     this.vertices = [];
     this.AABB = { min: nullVector, max: nullVector };
-  }
 
-  calculateBoxVertices() {
+    //Sprite Renderer Properties
+    this.shape;
+    this.color;
+
+    //Colider Properties
+    this.colider = false;
+
+    //Rigid Body 2D Properties
+    this.type;
+
+    this.mass;
+    this.invMass;
+
+    this.gravity;
+    this.density;
+
+    this.elasticity;
+
+    this.linearVelocity = nullVector;
+    this.rotationalVelocity = 0;
+
+    this.force = nullVector;
+
+    this.inertia = 0;
+    this.invInertia = 0;
+
+    //Customisation Properties
+    this.tag = 'Untagged';
+    this.name = name;
+  }
+  //------------------------------------ Add Property ----------------------------------------
+  addSpriteRenderer(shape, color) {
+    this.shape = shape;
+    this.color = color;
+
+    this.#recalculateHitbox();
+  }
+  addColider() {
+    this.colider = true;
+  }
+  addRigidBody(type, mass, gravity, density, elasticity) {
+    //Type of the rigid body, Dynamic or Static
+    this.type = type;
+
+    //Mass of the object
+    this.gravity = gravity;
+    this.density = density;
+
+    //Elasticity
+    this.elasticity = FlatMath.clamp(elasticity, 0, 1);
+
+    //Mass of the object
+    this.mass = mass;
+
+    //Inertia
+    this.inertia = this.calculateRotationalInertia();
+
+    //Inverses
+    if (this.type !== 'static') {
+      this.invMass = 1 / mass;
+      this.invInertia = 1 / this.inertia;
+    } else {
+      this.invMass = 0;
+      this.invInertia = 0;
+    }
+  }
+  //------------------------------------ Transform Methods ------------------------------------
+  #calculateBoxVertices() {
     //Initialize directions
-    let left = -this.scale.x / 2;
+    let left = -this.width / 2;
     let right = -left;
-    let bottom = -this.scale.y / 2;
+    let bottom = -this.height / 2;
     let top = -bottom;
 
     //Calculate vertices
@@ -568,38 +602,12 @@ class Transform {
     this.vertices[2] = v2;
     this.vertices[3] = v3;
   }
-
-  calculateAABB(shape) {
-    let minX = Infinity;
-    let minY = Infinity;
-    let maxX = -Infinity;
-    let maxY = -Infinity;
-    if (shape == 'box' || shape == 'triangle') {
-      for (let i = 0; i < this.vertices.length; i++) {
-        let v = this.vertices[i];
-
-        if (v.x < minX) minX = v.x;
-        if (v.y < minY) minY = v.y;
-        if (v.x > maxX) maxX = v.x;
-        if (v.y > maxY) maxY = v.y;
-      }
-    } else if (shape == 'circle') {
-      minX = this.position.x - this.scale.x / 2;
-      minY = this.position.y - this.scale.y / 2;
-      maxX = this.position.x + this.scale.x / 2;
-      maxY = this.position.y + this.scale.y / 2;
-    }
-
-    this.AABB.min = new FlatVector(minX, minY);
-    this.AABB.max = new FlatVector(maxX, maxY);
-  }
-
-  calculateTriangleVertices() {
+  #calculateTriangleVertices() {
     //Initialize directions
-    let left = -this.scale.x / 2;
+    let left = -this.width / 2;
     let right = -left;
-    let bottom = -this.scale.y * (1 / 3);
-    let top = this.scale.y * (2 / 3);
+    let bottom = -this.height * (1 / 3);
+    let top = this.height * (2 / 3);
 
     //Calculate vertices
     let transform, v0, v1, v2;
@@ -618,54 +626,110 @@ class Transform {
     this.vertices[1] = v1;
     this.vertices[2] = v2;
   }
-}
-class SpriteRenderer {
-  constructor(shape, color) {
-    this.sprite = shape;
-    this.color = color;
-  }
-}
-class BoxColider {}
-class CircleColider {}
-class TriangleColider {}
-class RigidBody2D {
-  constructor(type, mass, gravity, density, restitution) {
-    this.type = type;
+  #calculateAABB() {
+    let minX = Infinity;
+    let minY = Infinity;
+    let maxX = -Infinity;
+    let maxY = -Infinity;
 
-    this.mass = mass;
-    if (type == 'static') {
-      this.invMass = 0;
-    } else {
-      this.invMass = 1 / mass;
+    if (this.shape === 'box' || this.shape === 'triangle') {
+      for (let i = 0; i < this.vertices.length; i++) {
+        let v = this.vertices[i];
+
+        if (v.x < minX) minX = v.x;
+        if (v.y < minY) minY = v.y;
+        if (v.x > maxX) maxX = v.x;
+        if (v.y > maxY) maxY = v.y;
+      }
+    } else if (this.shape === 'circle') {
+      minX = this.position.x - this.radius;
+      minY = this.position.y - this.radius;
+      maxX = this.position.x + this.radius;
+      maxY = this.position.y + this.radius;
     }
-    this.gravity = gravity.divideScalar(60);
-    this.density = density;
 
-    this.restitution = restitution;
+    this.AABB.min = new FlatVector(minX, minY);
+    this.AABB.max = new FlatVector(maxX, maxY);
+  }
+  #recalculateHitbox() {
+    if (this.shape === 'box') {
+      this.#calculateBoxVertices();
+      this.#calculateAABB();
+    } else if (this.shape === 'triangle') {
+      this.#calculateTriangleVertices();
+      this.#calculateAABB();
+    } else if (this.shape === 'circle') {
+      this.radius = this.width / 2;
+      this.#calculateAABB();
+    }
+  }
+  rotateObject(name, angle) {
+    this.rotation += angle;
 
-    this.linearVelocity = nullVector;
-    this.rotationalVelocity = 0;
+    //Recalculate Hitbox
+    this.#recalculateHitbox();
+  }
+  move(amount = { x, y }) {
+    //Increment Position
+    this.position = this.position.addVector(amount);
 
+    //Recalculate Vertices
+    this.#recalculateHitbox();
+  }
+  moveTo(newPosition = new FlatVector()) {
+    this.position = newPosition;
+
+    //Recalculate Vertices
+    this.#recalculateHitbox();
+  }
+
+  //------------------------------------ Sprite Renderer Methods ------------------------------------
+
+  //------------------------------------ Colider  Methods ------------------------------------
+
+  //------------------------------------ RigidBody 2d Methods ------------------------------------
+  calculateRotationalInertia() {
+    let adjustment = 1000;
+    if (this.shape === 'circle') {
+      return ((1 / 12) * this.mass * this.radius ** 2) / adjustment;
+    } else if (this.shape === 'box' || this.shape === 'triangle') {
+      return (
+        ((1 / 12) * this.mass * (this.width ** 2 + this.height ** 2)) /
+        adjustment
+      );
+    }
+  }
+  addForce(amount = new FlatVector()) {
+    if (this.type === 'static') return;
+    this.force = amount;
+  }
+  step(time, precision) {
+    if (this.type === 'static') return;
+
+    time /= precision;
+
+    //Calculate Acceleration
+    let acceleration = this.force
+      .divideScalar(this.mass)
+      .addVector(this.gravity)
+      .multiplyScalar(time);
+
+    //Apply a portion of the acceleration to the linearVelocity
+    this.linearVelocity = this.linearVelocity.addVector(acceleration);
+
+    //Add the linearVelocity to the the object position
+    this.position = this.position.addVector(
+      this.linearVelocity.multiplyScalar(time)
+    );
+
+    //Add the rotationalVelocity to the the object position
+    this.rotation += this.rotationalVelocity * time;
+
+    //Set the object force to 0
     this.force = nullVector;
 
-    this.inertia = 0;
-    this.invInertia = 0;
-  }
-  calculateRotationalInertia(shape, width, height) {
-    if (shape instanceof CircleColider) {
-      this.inertia = (1 / 12) * this.mass * width ** 2;
-    } else if (
-      shape instanceof BoxColider ||
-      shape instanceof TriangleColider
-    ) {
-      this.inertia = (1 / 12) * this.mass * (width ** 2 + height ** 2);
-    }
-
-    if (this.type == 'static') {
-      this.invInertia = 0;
-    } else {
-      this.invInertia = 1 / this.inertia;
-    }
+    //Recalculate Hitbox
+    this.#recalculateHitbox();
   }
 }
 
@@ -673,15 +737,17 @@ class RigidBody2D {
 export class GameEngine {
   constructor() {
     this.objects = {};
+    this.objectsHirearchy = {};
 
     this.minPrecision = 1;
     this.maxPrecision = 100;
 
-    //Variables used for faster computing
+    //Scene Data Lists
     this.objectsWithRender = [];
-    this.taggedObjects = {};
     this.objectsWithRigidBody2D = [];
-    this.objectsWithColider = {};
+    this.objectsWithColider = [];
+
+    this.taggedObjects = {};
 
     //Used for resolving collisions realistically
     this.contactList = [];
@@ -690,323 +756,211 @@ export class GameEngine {
   //With this you can add objects to the scene
   addSceneObject(
     name = '',
-    position = { x: 0, y: 0 },
+    X = 0,
+    Y = 0,
     rotation = 0,
-    scale = { x: 0, y: 0 },
-    parent = '',
-    tag = ''
+    width,
+    height,
+    parent = ''
   ) {
-    // If name is invalid return
-    if (typeof name !== typeof '') {
-      throw console.error(
-        `-=- Invalid Object Name -=- \n Name can not be a ${typeof name}`
-      );
-    } else if (name === '') {
-      throw console.error(
-        `-=- Invalid Object Name -=- \n Name Can not be an empty string`
-      );
+    //---------------------------------Error Handling--------------------------------------
+
+    //Check if name is valid
+    if (name === '') {
+      try {
+        throw console.error(
+          `origin: addSceneObject()\nerror: Name "${name}" can't be an empty string\nfix: Name can only be a non-empty string`
+        );
+      } catch (err) {}
     }
-    // If Tag is invalid return
-    if (typeof tag !== typeof '') {
-      throw console.error(
-        `-=- Invalid Object Tag -=- \n Tag can not be a ${typeof tag}`
-      );
+    if (!typeof name === typeof '') {
+      try {
+        throw console.error(
+          `origin: addSceneObject()\nerror: Name "${name}" can't be a type of ${typeof name}\nfix: Name can only be a non-empty string`
+        );
+      } catch (err) {}
     }
-
-    // If There is already an object with that name then return
-    let path = this.findObjectParent(name, this.objects);
-    if (path) {
-      throw console.error('-=- Object Name already exists -=-');
-    }
-
-    //Add object with *name* to *parent* with compulsory Transform class to parent
-    path = this.findObjectParent(parent, this.objects);
-    if (!path && parent !== '') {
-      throw console.error(
-        `-=- Invalid Parent Name -=- \n Parent doesn't exist`
-      );
-    } else if (typeof parent !== typeof '') {
-      throw console.error(
-        `-=- Invalid Parent Name -=- \n Parent can not be a ${typeof parent}`
-      );
-    } else if (parent == '') {
-      //Add object with *name* with compulsory Transform class to parent
-      //If parent is '' that just means the parent is this.objects
-
-      this.objects[name] = {
-        transform: new Transform(position, rotation, scale),
-        children: {},
-      };
-
-      //Add a tag if it exists else mark it as Untagged
-      if (tag !== '') {
-        this.changeObjectTag(name, tag);
-      } else {
-        this.changeObjectTag(name, 'Untagged');
-      }
-    } else {
-      //Add object with *name* to *parent* with compulsory Transform class to parent
-      path.push(parent);
-      this.getObjectPointer(path).children[name] = {
-        transform: new Transform(position, rotation, scale),
-        children: {},
-      };
-
-      //Add a tag if it exists else mark it as Untagged
-      if (tag !== '') {
-        this.changeObjectTag(name, tag);
-      } else {
-        this.changeObjectTag(name, 'Untagged');
-      }
-    }
-  }
-
-  //Utility Methods for adding properties
-  addSpriteRenderer(name = '', shape = '', color = '') {
-    shape = shape.toLowerCase();
-
-    // If shape is invalid return
-    if (typeof shape !== typeof '') {
-      throw console.error(
-        `-=- Invalid Object Shape -=- \n Shape can not be a ${typeof name}`
-      );
-    } else if (shape === '') {
-      throw console.error(
-        `-=- Invalid Object Shape -=- \n Shape can not be an empty string`
-      );
-    }
-    // If color is invalid return
-    if (typeof color !== typeof '') {
-      throw console.error(
-        `-=- Invalid Object Color -=- \n Color can not be a ${typeof name}`
-      );
-    } else if (color === '') {
-      throw console.error(
-        `-=- Invalid Object Color -=- \n Color can not be an empty string`
-      );
+    //Check if name already exists
+    if (this.objects[name]) {
+      try {
+        throw console.error(
+          `origin: addSceneObject()\nerror: Name "${name}" already exists`
+        );
+      } catch (err) {}
     }
 
-    //If name doesnt exist return
-    let path = this.findObjectParent(name, this.objects);
-    if (!path) {
-      throw console.error(`-=- Object Name doesn't exist -=-`);
-    }
+    //---------------------------------Main--------------------------------------
 
-    path.push(name);
-
-    //Get the object with *name*
-    let sceneObject = this.getObjectPointer(path);
-
-    //Add SpriteRenderer class to object
-    sceneObject.spriteRenderer = new SpriteRenderer(shape, color);
-    //Recalculate Vertices
-    this.#recalculateTransformThings(sceneObject);
-
-    this.objectsWithRender.push(path);
-  }
-  addBoxColider(name = '') {
-    //If name doesnt exist return
-    let path = this.findObjectParent(name, this.objects);
-    if (!path) {
-      throw console.error(`-=- Object Name doesn't exist -=-`);
-    }
-
-    //Get the object with *name*
-    path.push(name);
-    let sceneObject = this.getObjectPointer(path);
-
-    //Add BoxColider class to object
-    sceneObject.colider = new BoxColider();
-
-    //If tag exists, push the path to the current object
-    if (this.objectsWithColider['BoxColider']) {
-      this.objectsWithColider['BoxColider'].push(path);
-    } //If tag doesnt exist, initialize it and set it to a list containing the path to the current object
-    else {
-      this.objectsWithColider['BoxColider'] = [path];
-    }
-  }
-  addCircleColider(name = '') {
-    //If name doesnt exist return
-    let path = this.findObjectParent(name, this.objects);
-    if (!path) {
-      throw console.error(`-=- Object Name doesn't exist -=-`);
-    }
-
-    //Get the object with *name*
-    path.push(name);
-    let sceneObject = this.getObjectPointer(path);
-
-    //Add BoxColider class to object
-    sceneObject.colider = new CircleColider();
-
-    //If tag exists, push the path to the current object
-    if (this.objectsWithColider['CircleColider']) {
-      this.objectsWithColider['CircleColider'].push(path);
-    } //If tag doesnt exist, initialize it and set it to a list containing the path to the current object
-    else {
-      this.objectsWithColider['CircleColider'] = [path];
-    }
-  }
-  addTriangleColider(name = '') {
-    //If name doesnt exist return
-    let path = this.findObjectParent(name, this.objects);
-    if (!path) {
-      throw console.error(`-=- Object Name doesn't exist -=-`);
-    }
-
-    //Get the object with *name*
-    path.push(name);
-    let sceneObject = this.getObjectPointer(path);
-
-    //Add BoxColider class to object
-    sceneObject.colider = new TriangleColider();
-
-    //If tag exists, push the path to the current object
-    if (this.objectsWithColider['TriangleColider']) {
-      this.objectsWithColider['TriangleColider'].push(path);
-    } //If tag doesnt exist, initialize it and set it to a list containing the path to the current object
-    else {
-      this.objectsWithColider['TriangleColider'] = [path];
-    }
-  }
-  addColider(name = '', shape = '') {
-    //If name doesnt exist return
-    let path = this.findObjectParent(name, this.objects);
-    if (!path) {
-      throw console.error(`-=- Object Name doesn't exist -=-`);
-    }
-
-    //Get the object with *name*
-    path.push(name);
-    let sceneObject = this.getObjectPointer(path);
-
-    //Add BoxColider class to object
-    if (shape.toLowerCase() == 'triangle') {
-      sceneObject.colider = new TriangleColider();
-    } else if (shape.toLowerCase() == 'box') {
-      sceneObject.colider = new BoxColider();
-    } else if (shape.toLowerCase() == 'circle') {
-      sceneObject.colider = new CircleColider();
-    } else {
-      throw console.error('-=- Invalid Shape Type -=-');
-    }
-
-    //If tag exists, push the path to the current object
-    if (this.objectsWithColider[shape]) {
-      this.objectsWithColider[shape].push(path);
-    } //If tag doesnt exist, initialize it and set it to a list containing the path to the current object
-    else {
-      this.objectsWithColider[shape] = [path];
-    }
-  }
-  addRigidBody2D(name, type, mass, gravity, restitution, density = 1) {
-    //If name doesnt exist return
-    let path = this.findObjectParent(name, this.objects);
-    if (!path) {
-      throw console.error(`-=- Object Name doesn't exist -=-`);
-    }
-
-    //Get the object with *name*
-    path.push(name);
-    let sceneObject = this.getObjectPointer(path);
-
-    //Add BoxColider class to object
-    sceneObject.rigidBody2D = new RigidBody2D(
-      type,
-      mass,
-      gravity,
-      density,
-      restitution
+    //Add object to object list
+    this.objects[name] = new SceneObject(
+      name,
+      { x: X, y: Y },
+      rotation,
+      width,
+      height
     );
 
-    sceneObject.rigidBody2D.calculateRotationalInertia(
-      sceneObject.colider,
-      sceneObject.transform.scale.x,
-      sceneObject.transform.scale.y
-    );
+    //Add object in the hirearchy
+    if (parent === '') {
+      this.objectsHirearchy[name] = {};
+    } else {
+      let parentPath = this.findObjectParent(parent);
+      parentPath.push(parent);
+      let parentObject = this.getObject(parentPath);
 
-    this.objectsWithRigidBody2D.push(path);
+      parentObject[name] = {};
+    }
+  }
+  removeSceneObject(name) {
+    //Check if name doesn't exist
+    if (this.objects[name]) {
+      try {
+        throw console.error(
+          `origin: removeSceneObject()\nerror: Name "${name}" doesn't exist`
+        );
+      } catch (err) {}
+    }
   }
 
-  //RigidBody Functionalities
+  //Update Game Engine Data Lists
+  updateSceneData() {
+    for (const name in this.objects) {
+      let sceneObject = this.objects[name];
+
+      //Goes through every list and removes the object if it is already there
+      //For rigidbody list and render list check if it has a property exclusive to them and if so add them
+
+      //Update rigid body list
+      this.updateDataListRB(sceneObject);
+      //Update render list
+      this.updateDataListSR(sceneObject);
+      //Update tag list
+      this.updateDataListTG(sceneObject);
+      //Update colider list
+      this.updateDataListCL(sceneObject);
+    }
+  }
+  updateDataListSR(sceneObject) {
+    for (let i = 0; i < this.objectsWithRender.length; i++) {
+      if (this.objectsWithRender[i] === sceneObject.name) {
+        this.objectsWithRender.splice(i, 1);
+      }
+    }
+    if (sceneObject.shape) {
+      this.objectsWithRender.push(sceneObject.name);
+    }
+  }
+  updateDataListCL(sceneObject) {
+    for (let i = 0; i < this.objectsWithColider.length; i++) {
+      if (this.objectsWithColider[i] === sceneObject.name) {
+        this.objectsWithColider.splice(i, 1);
+      }
+    }
+    if (sceneObject.colider) {
+      this.objectsWithColider.push(sceneObject.name);
+    }
+  }
+  updateDataListRB(sceneObject) {
+    for (let i = 0; i < this.objectsWithRigidBody2D.length; i++) {
+      if (this.objectsWithRigidBody2D[i] === sceneObject.name) {
+        this.objectsWithRigidBody2D.splice(i, 1);
+      }
+    }
+    if (sceneObject.type) {
+      this.objectsWithRigidBody2D.push(sceneObject.name);
+    }
+  }
+  updateDataListTG(sceneObject) {
+    for (const tag in this.taggedObjects) {
+      for (let i = 0; i < this.taggedObjects[tag].length; i++) {
+        if (this.taggedObjects[tag][i] === sceneObject.name) {
+          this.taggedObjects[tag].splice(i, 1);
+        }
+      }
+    }
+    if (this.taggedObjects[sceneObject.tag]) {
+      this.taggedObjects[sceneObject.tag].push(sceneObject.name);
+    } else {
+      this.taggedObjects[sceneObject.tag] = [sceneObject.name];
+    }
+  }
+
+  //Physics
   simulateObjectPhysics(precision, time = 1) {
     precision = FlatMath.clamp(precision, this.minPrecision, this.maxPrecision);
     //Have a cache so you don't double check
     let cache = new Set();
+
     for (let it = 0; it < precision; it++) {
-      for (let i = 0; i < this.objectsWithRigidBody2D.length; i++) {
-        let path = this.objectsWithRigidBody2D[i];
-        let object = this.getObjectPointer(path);
+      //Apply velocities to each object -- Movement
+      this.#stepBodies(time, precision);
 
-        this.#useForces(object, object.rigidBody2D.gravity, time, precision);
-      }
-
-      this.contactList = [];
+      this.contactList = []; // reset contact list
       //Loop Through every object with a rigidBody2D -- Collisions
       for (let i = 0; i < this.objectsWithRigidBody2D.length; i++) {
-        //Get the Path to the objectA and then get the object
-        let pathA = this.objectsWithRigidBody2D[i];
-        let objectA = this.getObjectPointer(pathA);
+        //Get objectA
+        let objectA = this.objects[this.objectsWithRigidBody2D[i]];
 
-        //If object has no colider than continue since it can t interact with others
+        //If objectA has no colider then continue (since it can't interact with others)
         if (!objectA.colider) {
           continue;
         }
 
-        //Loop through every *shape*Colider list
-        for (const shape in this.objectsWithColider) {
-          let currentColiderObjects = this.objectsWithColider[shape];
+        //Loop through every object with a colider
+        for (let j = 0; j < this.objectsWithColider.length; j++) {
+          /* Check if we've looked at this before */
+          if (
+            this.objectsWithRigidBody2D[i] === this.objectsWithColider[j] ||
+            cache.has(
+              this.objectsWithColider[j] + this.objectsWithRigidBody2D[i]
+            )
+          ) {
+            continue;
+          } else {
+            cache.add(
+              this.objectsWithRigidBody2D[i] + this.objectsWithColider[j]
+            );
+          }
 
-          //Loop through objects that have the *shape*Colider
-          for (let j = 0; j < currentColiderObjects.length; j++) {
-            let pathB = this.objectsWithColider[shape][j];
+          // Get ObjectB
+          let objectB = this.objects[this.objectsWithColider[j]];
 
-            /*If the path to both objects are the same it means we are checking the same object
-          or if the pair is in the cache then we have already checked it*/
+          //If they are both static continute since they can t interact with eachother
+          if (objectA.type === 'static' && objectB.type === 'static') {
+            continue;
+          }
 
-            if (
-              pathA[pathA.length - 1] == pathB[pathB.length - 1] ||
-              cache.has(pathB[pathB.length - 1] + pathA[pathA.length - 1])
-            ) {
-              continue;
-            } else {
-              cache.add(pathA[pathA.length - 1] + pathB[pathB.length - 1]);
-            }
+          //Simpler test than the collision, we are checking if their axis aligned hitboxes collide
+          if (!Collision.intersectAABBs(objectA.AABB, objectB.AABB)) {
+            continue;
+          }
 
-            //Get the objectB
-            let objectB = this.getObjectPointer(pathB);
+          //Simulate the collisions
+          let collision = Collision.doObjectsCollide(objectA, objectB);
 
-            //If they are both static continute since they can t interact with eachother
-            if (
-              objectA.rigidBody2D.type == 'static' &&
-              objectB.rigidBody2D.type == 'static'
-            ) {
-              continue;
-            }
+          if (collision) {
+            this.separateBodies(
+              objectA,
+              objectB,
+              collision.normal,
+              collision.depth
+            );
+            //Add this contact to the contact list
+            let collisionContact = Collision.findContactPoints(
+              objectA,
+              objectB
+            );
 
-            //Simpler test than the collision, we are checking if their axis aligned hitboxes collide
-            if (
-              !Collision.intersectAABBs(
-                objectA.transform.AABB,
-                objectB.transform.AABB
-              )
-            ) {
-              continue;
-            }
-
-            //Simulate the collisions
-            let collision = Collision.doObjectsCollide(objectA, objectB);
-            if (collision) {
-              this.eliminateOverlap(
-                objectA,
-                objectB,
-                pathA,
-                pathB,
-                collision.normal,
-                collision.depth
-              );
-            }
+            let manifold = new FlatManifold(
+              objectA,
+              objectB,
+              collision.normal,
+              collision.depth,
+              collisionContact.contact1,
+              collisionContact.contact2,
+              collisionContact.contactCount
+            );
+            this.contactList.push(manifold);
           }
         }
       }
@@ -1018,89 +972,55 @@ export class GameEngine {
       }
     }
   }
-  eliminateOverlap(objectA, objectB, pathA, pathB, normal, depth) {
+  separateBodies(objectA, objectB, normal, depth) {
     //Move them outside of each other so they don t collide anymore
-    if (!objectA.rigidBody2D.type == 'static') {
-      if (
-        objectB.rigidBody2D ||
-        !objectB.rigidBody2D.type.toLowerCase() === 'static'
-      ) {
-        //Both have dynamic rigidbody and coliders so move them evenly
-        this.moveObject(
-          pathA[pathA.length - 1],
-          normal.multiplyScalar(depth).divideScalar(2).opositeVector()
-        );
-        this.moveObject(
-          pathB[pathB.length - 1],
-          normal.divideScalar(2).multiplyScalar(depth)
-        );
-      } else {
-        this.moveObject(
-          pathA[pathA.length - 1],
-          normal.multiplyScalar(depth).opositeVector()
-        );
+
+    let amount;
+
+    if (objectA.type === 'dynamic') {
+      if (objectB.type === 'dynamic') {
+        //Move them both out of the collision
+        amount = normal.multiplyScalar(depth).divideScalar(2);
+        objectA.move(amount.opositeVector());
+        objectB.move(amount);
+      } else if (objectB.type === 'static') {
+        //Move objectA out of the collision
+        amount = normal.multiplyScalar(depth).opositeVector();
+        objectA.move(amount);
       }
-    } else {
-      this.moveObject(
-        pathB[pathB.length - 1],
-        normal.divideScalar(2).multiplyScalar(depth)
-      );
+    } else if (objectA.type === 'static') {
+      //Move objectB out of the collision
+      amount = normal.divideScalar(2).multiplyScalar(depth);
+      objectB.move(amount);
     }
-
-    //Add the collision data of the two object to contact list so they can be resolved
-    let collisionContact = Collision.findContactPoints(objectA, objectB);
-
-    let manifold = new FlatManifold(
-      objectA,
-      objectB,
-      normal,
-      depth,
-      collisionContact.contact1,
-      collisionContact.contact2,
-      collisionContact.contactCount
-    );
-    this.contactList.push(manifold);
   }
   calculateIntersectionImpulse(contact) {
     let bodyA = contact.bodyA;
     let bodyB = contact.bodyB;
     let normal = contact.normal;
 
-    let relativeVelocity = bodyB.rigidBody2D.linearVelocity.subtractVector(
-      bodyA.rigidBody2D.linearVelocity
+    let relativeVelocity = bodyB.linearVelocity.subtractVector(
+      bodyA.linearVelocity
     );
 
     if (FlatMath.dot(relativeVelocity, normal) > 0) {
       return;
     }
 
-    let e = Math.min(
-      bodyA.rigidBody2D.restitution,
-      bodyB.rigidBody2D.restitution
-    );
+    let e = Math.min(bodyA.elasticity, bodyB.elasticity);
 
     let j = -(1 + e) * FlatMath.dot(relativeVelocity, normal);
 
-    let invA = 1 / bodyA.rigidBody2D.mass;
-    let invB = 1 / bodyB.rigidBody2D.mass;
-    if (bodyA.rigidBody2D.type.toLowerCase() === 'static') {
-      invA = 0;
-    } else if (
-      !bodyB.rigidBody2D ||
-      bodyB.rigidBody2D.type.toLowerCase() === 'static'
-    ) {
-      invB = 0;
-    }
-    j /= invA + invB;
+    j /= bodyA.invMass + bodyB.invMass;
 
     let impulse = normal.multiplyScalar(j);
 
-    bodyA.rigidBody2D.linearVelocity =
-      bodyA.rigidBody2D.linearVelocity.subtractVector(
-        impulse.multiplyScalar(invA)
-      );
-    bodyB.rigidBody2D.linearVelocity =
-      bodyB.rigidBody2D.linearVelocity.addVector(impulse.multiplyScalar(invB));
+    bodyA.linearVelocity = bodyA.linearVelocity.addVector(
+      impulse.multiplyScalar(bodyA.invMass).opositeVector()
+    );
+    bodyB.linearVelocity = bodyB.linearVelocity.addVector(
+      impulse.multiplyScalar(bodyB.invMass)
+    );
   }
   calculateIntersectionImpulseRotation(contact = new FlatManifold()) {
     let bodyA = contact.bodyA;
@@ -1110,10 +1030,7 @@ export class GameEngine {
     let contact2 = contact.contact2;
     let contactCount = contact.contactCount;
 
-    let e = Math.min(
-      bodyA.rigidBody2D.restitution,
-      bodyB.rigidBody2D.restitution
-    );
+    let e = Math.min(bodyA.elasticity, bodyB.elasticity);
 
     let contactList = [contact1, contact2];
     let impulseList = [nullVector, nullVector];
@@ -1121,8 +1038,8 @@ export class GameEngine {
     let rbList = [nullVector, nullVector];
 
     for (let i = 0; i < contactCount; i++) {
-      let ra = contactList[i].subtractVector(bodyA.transform.position);
-      let rb = contactList[i].subtractVector(bodyB.transform.position);
+      let ra = contactList[i].subtractVector(bodyA.position);
+      let rb = contactList[i].subtractVector(bodyB.position);
 
       raList[i] = ra;
       rbList[i] = rb;
@@ -1131,25 +1048,21 @@ export class GameEngine {
       let rbPerp = new FlatVector(-rb.y, rb.x);
 
       let angularLinearVelocityA = raPerp.multiplyScalar(
-        bodyA.rigidBody2D.rotationalVelocity
+        bodyA.rotationalVelocity
       );
       let angularLinearVelocityB = rbPerp.multiplyScalar(
-        bodyB.rigidBody2D.rotationalVelocity
+        bodyB.rotationalVelocity
       );
 
-      let relativeVelocity = bodyB.rigidBody2D.linearVelocity
+      let relativeVelocity = bodyB.linearVelocity
         .addVector(angularLinearVelocityB)
-        .subtractVector(
-          bodyA.rigidBody2D.linearVelocity.addVector(angularLinearVelocityA)
-        );
+        .subtractVector(bodyA.linearVelocity.addVector(angularLinearVelocityA));
+
       let contactVelocityMag = FlatMath.dot(relativeVelocity, normal);
 
       if (contactVelocityMag > 0) {
         continue;
       }
-
-      let invA = bodyA.rigidBody2D.invMass;
-      let invB = bodyB.rigidBody2D.invMass;
 
       let raPerpDotN = FlatMath.dot(raPerp, normal);
       let rbPerpDotN = FlatMath.dot(rbPerp, normal);
@@ -1157,16 +1070,16 @@ export class GameEngine {
       let j = -(1 + e) * contactVelocityMag;
 
       let den =
-        invA +
-        invB +
-        raPerpDotN ** 2 * bodyA.rigidBody2D.invInertia +
-        rbPerpDotN ** 2 * bodyB.rigidBody2D.invInertia;
+        bodyA.invMass +
+        bodyB.invMass +
+        raPerpDotN * raPerpDotN * bodyA.invInertia +
+        rbPerpDotN * rbPerpDotN * bodyB.invInertia;
 
       j /= den;
       j /= contactCount;
 
       let impulse = normal.multiplyScalar(j);
-
+      console.log(impulse);
       impulseList[i] = impulse;
     }
 
@@ -1176,214 +1089,50 @@ export class GameEngine {
       let ra = raList[i];
       let rb = rbList[i];
 
-      let invA = bodyA.rigidBody2D.invMass;
-      let invB = bodyB.rigidBody2D.invMass;
+      let invA = bodyA.invMass;
+      let invB = bodyB.invMass;
 
-      let invInertiaA = bodyA.rigidBody2D.invInertia;
-      let invInertiaB = bodyB.rigidBody2D.invInertia;
+      let invInertiaA = bodyA.invInertia;
+      let invInertiaB = bodyB.invInertia;
 
       //Adjust the linear Velocity and rotational Velocity for bodyA
-      bodyA.rigidBody2D.linearVelocity =
-        bodyA.rigidBody2D.linearVelocity.addVector(
-          impulse.opositeVector().multiplyScalar(invA)
-        );
-      bodyA.rigidBody2D.rotationalVelocity +=
-        -FlatMath.cross(ra, impulse) * invInertiaA;
+      bodyA.linearVelocity = bodyA.linearVelocity.addVector(
+        impulse.opositeVector().multiplyScalar(invA)
+      );
+      bodyA.rotationalVelocity += -FlatMath.cross(ra, impulse) * invInertiaA;
 
       //Adjust the linear Velocity and rotational Velocity for bodyB
 
-      bodyB.rigidBody2D.linearVelocity =
-        bodyB.rigidBody2D.linearVelocity.addVector(
-          impulse.multiplyScalar(invB)
-        );
-      bodyB.rigidBody2D.rotationalVelocity +=
-        FlatMath.cross(rb, impulse) * invInertiaB;
-    }
-  }
-  addForce(name, amount = new FlatVector()) {
-    let path = this.findObjectParent(name);
-    path.push(name);
-    let sceneObject = this.getObjectPointer(path);
-
-    if (sceneObject.rigidBody2D.type === 'static') return;
-
-    sceneObject.rigidBody2D.force = amount;
-  }
-  #useForces(sceneObject, gravity, time, precision) {
-    if (sceneObject.rigidBody2D.type === 'static') return;
-
-    time /= precision;
-
-    //Calculate Acceleration
-    let acceleration = sceneObject.rigidBody2D.force.divideScalar(
-      sceneObject.rigidBody2D.mass
-    );
-
-    //Apply a portion of the gravity to the linearVelocity
-    sceneObject.rigidBody2D.linearVelocity =
-      sceneObject.rigidBody2D.linearVelocity.addVector(
-        gravity.multiplyScalar(time)
+      bodyB.linearVelocity = bodyB.linearVelocity.addVector(
+        impulse.multiplyScalar(invB)
       );
-
-    //Apply a portion of the acceleration to the linearVelocity
-    sceneObject.rigidBody2D.linearVelocity =
-      sceneObject.rigidBody2D.linearVelocity.addVector(
-        acceleration.multiplyScalar(time)
-      );
-
-    //Add the linearVelocity to the the object position
-    sceneObject.transform.position = sceneObject.transform.position.addVector(
-      sceneObject.rigidBody2D.linearVelocity.multiplyScalar(time)
-    );
-
-    //Add the rotationalVelocity to the the object position
-    sceneObject.transform.rotation +=
-      sceneObject.rigidBody2D.rotationalVelocity * time;
-
-    //Set the object force to 0
-    sceneObject.rigidBody2D.force = nullVector;
-
-    //Recalculate Vertices
-    this.#recalculateTransformThings(sceneObject);
-  }
-
-  //Methods for changing things
-  changeObjectTag(name, tag) {
-    //Get the objects with specified *name*
-    let path = this.findObjectParent(name, this.objects);
-    path.push(name);
-    this.getObjectPointer(path).tag = tag;
-
-    //Delete other tag
-    for (const t in this.taggedObjects) {
-      let objectsWithT = this.taggedObjects[t];
-      let tLen = t.length;
-      for (let i = 0; i < tLen; i++) {
-        if (objectsWithT[i] == name) {
-          this.taggedObjects[t].splice(i, 1);
-        }
-      }
-    }
-
-    //If tag exists, push the path to the current object
-    if (this.taggedObjects[tag]) {
-      this.taggedObjects[tag].push(path);
-    } //If tag doesnt exist, initialize it and set it to a list containing the path to the current object
-    else {
-      this.taggedObjects[tag] = [path];
+      bodyB.rotationalVelocity += FlatMath.cross(rb, impulse) * invInertiaB;
     }
   }
-  changeObjectColor(name, tag) {
-    //Get the objects with specified *name*
-    let path = this.findObjectParent(name, this.objects);
-    path.push(name);
-    this.getObjectPointer(path).tag = tag;
-
-    //Delete other tag
-    for (const t in this.taggedObjects) {
-      let objectsWithT = this.taggedObjects[t];
-      let tLen = t.length;
-      for (let i = 0; i < tLen; i++) {
-        if (objectsWithT[i] == name) {
-          this.taggedObjects[t].splice(i, 1);
-        }
-      }
-    }
-
-    //If tag exists, push the path to the current object
-    if (this.taggedObjects[tag]) {
-      this.taggedObjects[tag].push(path);
-    } //If tag doesnt exist, initialize it and set it to a list containing the path to the current object
-    else {
-      this.taggedObjects[tag] = [path];
-    }
-  }
-
-  //Methods for changing transform properties
-  moveObject(name, amount = { x, y }) {
-    let path = this.findObjectParent(name, this.objects);
-    if (!path) {
-      throw console.error(
-        `-=- Invalid Name -=- \n Can't increment object because ${name} doesn't exist`
-      );
-    }
-    path.push(name);
-
-    //Get the scene Object
-    let sceneObject = this.getObjectPointer(path);
-
-    //Increment Position
-    sceneObject.transform.position =
-      sceneObject.transform.position.addVector(amount);
-
-    //Recalculate Vertices
-    this.#recalculateTransformThings(sceneObject);
-  }
-  moveObjectTo(name, newPosition = { x, y }) {
-    let path = this.findObjectParent(name, this.objects);
-    if (!path) {
-      throw console.error(
-        `-=- Invalid Object Name -=- \n Can't change object position because ${name} doesn't exist`
-      );
-    }
-    path.push(name);
-
-    //Get the scene Object
-    let sceneObject = this.getObjectPointer(path);
-
-    //Change Position
-    sceneObject.transform.position.x = newPosition.x;
-    sceneObject.transform.position.y = newPosition.y;
-
-    //Recalculate Vertices
-    this.#recalculateTransformThings(sceneObject);
-  }
-  rotateObject(name, angle) {
-    let path = this.findObjectParent(name);
-    if (!path) {
-      throw console.error(
-        `-=- Invalid Name -=- \n Can't increment object because ${name} doesn't exist`
-      );
-    }
-    path.push(name);
-    let sceneObject = this.getObjectPointer(path, this.objects);
-
-    sceneObject.transform.rotation += angle;
-
-    //Recalculate Vertices
-    this.#recalculateTransformThings(sceneObject);
-  }
-  #recalculateTransformThings(sceneObject) {
-    //Recalculate Vertices
-
-    if (sceneObject.spriteRenderer.sprite == 'box') {
-      sceneObject.transform.calculateBoxVertices();
-      sceneObject.transform.calculateAABB(sceneObject.spriteRenderer.sprite);
-    } else if (sceneObject.spriteRenderer.sprite == 'triangle') {
-      sceneObject.transform.calculateTriangleVertices();
-      sceneObject.transform.calculateAABB(sceneObject.spriteRenderer.sprite);
-    } else if ((sceneObject.spriteRenderer.sprite = 'circle')) {
-      sceneObject.transform.calculateAABB(sceneObject.spriteRenderer.sprite);
+  #stepBodies(time, precision) {
+    for (let i = 0; i < this.objectsWithRigidBody2D.length; i++) {
+      let object = this.objects[this.objectsWithRigidBody2D[i]];
+      object.step(time, precision);
     }
   }
 
   //Utility Methods for finding stuff
-  findObjectParent(name, object = this.objects, path = []) {
+  findObjectParent(name, object = this.objectsHirearchy, path = []) {
     for (const id in object) {
-      let sceneObject = object[id];
+      const children = object[id];
 
       // Add the current object's name to the path
       path.push(id);
 
       if (id === name) {
-        // If found, remove the current name and return the path
+        // If found, remove the current name and return the path to the parent
         path.pop();
-        return path;
+        return [...path]; // Return a copy of the path
       }
 
       // Recur into children if they exist
-      if (sceneObject.children) {
-        const result = this.findObjectParent(name, sceneObject.children, path);
+      if (children) {
+        const result = this.findObjectParent(name, children, path);
         if (result) return result; // Return the path if found
       }
 
@@ -1394,14 +1143,10 @@ export class GameEngine {
     // Return null if the object is not found
     return null;
   }
-  getObjectPointer(path) {
-    let schema = this.objects;
+  getObject(path) {
+    let schema = this.objectsHirearchy;
     for (let i = 0; i < path.length; i++) {
-      if (i == 0) {
-        schema = schema[path[i]];
-      } else {
-        schema = schema.children[path[i]];
-      }
+      schema = schema[path[i]];
     }
 
     return schema;
@@ -1409,81 +1154,35 @@ export class GameEngine {
 
   //Looks at this.objectWithRenderers and draws everything in there
   drawObjects() {
-    for (let i = 0; i < this.objectsWithRender.length; i++) {
-      let sceneObject = this.getObjectPointer(this.objectsWithRender[i]);
+    for (const id in this.objectsWithRender) {
+      let sceneObject = this.objects[this.objectsWithRender[id]];
 
       c.beginPath();
-      c.fillStyle = sceneObject.spriteRenderer.color;
+      c.fillStyle = sceneObject.color;
 
-      if (sceneObject.spriteRenderer.sprite == 'box') {
-        c.moveTo(
-          sceneObject.transform.vertices[0].x,
-          sceneObject.transform.vertices[0].y
-        );
-        c.lineTo(
-          sceneObject.transform.vertices[1].x,
-          sceneObject.transform.vertices[1].y
-        );
-        c.lineTo(
-          sceneObject.transform.vertices[2].x,
-          sceneObject.transform.vertices[2].y
-        );
-        c.lineTo(
-          sceneObject.transform.vertices[3].x,
-          sceneObject.transform.vertices[3].y
-        );
-        c.lineTo(
-          sceneObject.transform.vertices[0].x,
-          sceneObject.transform.vertices[0].y
-        );
-      } else if (sceneObject.spriteRenderer.sprite == 'triangle') {
-        c.moveTo(
-          sceneObject.transform.vertices[0].x,
-          sceneObject.transform.vertices[0].y
-        );
-        c.lineTo(
-          sceneObject.transform.vertices[1].x,
-          sceneObject.transform.vertices[1].y
-        );
-        c.lineTo(
-          sceneObject.transform.vertices[2].x,
-          sceneObject.transform.vertices[2].y
-        );
-        c.lineTo(
-          sceneObject.transform.vertices[0].x,
-          sceneObject.transform.vertices[0].y
-        );
-      } else if (sceneObject.spriteRenderer.sprite == 'circle') {
+      if (sceneObject.shape === 'box') {
+        c.moveTo(sceneObject.vertices[0].x, sceneObject.vertices[0].y);
+        c.lineTo(sceneObject.vertices[1].x, sceneObject.vertices[1].y);
+        c.lineTo(sceneObject.vertices[2].x, sceneObject.vertices[2].y);
+        c.lineTo(sceneObject.vertices[3].x, sceneObject.vertices[3].y);
+        c.lineTo(sceneObject.vertices[0].x, sceneObject.vertices[0].y);
+      } else if (sceneObject.shape === 'triangle') {
+        c.moveTo(sceneObject.vertices[0].x, sceneObject.vertices[0].y);
+        c.lineTo(sceneObject.vertices[1].x, sceneObject.vertices[1].y);
+        c.lineTo(sceneObject.vertices[2].x, sceneObject.vertices[2].y);
+        c.lineTo(sceneObject.vertices[0].x, sceneObject.vertices[0].y);
+      } else if (sceneObject.shape === 'circle') {
         c.arc(
-          sceneObject.transform.position.x,
-          sceneObject.transform.position.y,
-          sceneObject.transform.scale.x / 2,
-          sceneObject.transform.rotation,
-          2 * Math.PI + sceneObject.transform.rotation
+          sceneObject.position.x,
+          sceneObject.position.y,
+          sceneObject.radius,
+          sceneObject.rotation,
+          2 * Math.PI + sceneObject.rotation
         );
       }
 
       c.fill();
       c.closePath();
     }
-
-    //Drawing these to see if they work
-    // for (let i = 0; i < this.contactList.length; i++) {
-    //   let manifold = this.contactList[i];
-
-    //   c.beginPath();
-    //   c.fillStyle = 'hsl(360deg,100%,20%)';
-    //   c.strokeStyle = '#fff';
-
-    //   if (manifold.contact1 !== nullVector) {
-    //     c.fillRect(manifold.contact1.x - 4, manifold.contact1.y - 4, 8, 8);
-    //     c.strokeRect(manifold.contact1.x - 4, manifold.contact1.y - 4, 8, 8);
-    //   }
-    //   if (manifold.contact2 !== nullVector) {
-    //     c.fillRect(manifold.contact2.x - 4, manifold.contact2.y - 4, 8, 8);
-    //     c.strokeRect(manifold.contact2.x - 4, manifold.contact2.y - 4, 8, 8);
-    //   }
-    //   c.closePath();
-    // }
   }
 }
