@@ -18,11 +18,11 @@ c.transform(1, 0, 0, -1, 0, canvas.height);
 //"We have Unity at home" ahh
 let gameEngine = new GameEngine();
 
-let gravity = new FlatVector(0, -0.001);
+let gravity = new FlatVector(0, -0.02);
 
 let id = 0;
-function createObject(posX, posY, width, height, type) {
-  gameEngine.addSceneObject(`${id}`, posX, posY, 0, width, height);
+function createObject(posX, posY, angle, width, height, type) {
+  gameEngine.addSceneObject(`${id}`, posX, posY, angle, width, height);
   let object = gameEngine.objects[`${id}`];
 
   object.addColider();
@@ -50,12 +50,13 @@ window.addEventListener('keydown', (e) => {
   }
 });
 window.addEventListener('mousedown', (e) => {
-  createObject(e.clientX, windowH - e.clientY, 25, 25, 'dynamic');
+  createObject(e.clientX, windowH - e.clientY, 0, 25, 25, 'dynamic');
 });
 let shape = 'box';
-createObject(windowW / 2, 100, 1000, 50, 'static');
-createObject(windowW / 2 - 500, 100, 100, 1000, 'static');
-createObject(windowW / 2 + 500, 100, 100, 1000, 'static');
+createObject(windowW / 2, 100, 0, 1000, 50, 'static');
+createObject(windowW / 2 - 500, 100, 0, 100, 1000, 'static');
+createObject(windowW / 2 + 500, 100, 0, 100, 1000, 'static');
+createObject(windowW / 2 - 200, 500, 15, 500, 50, 'static');
 let previousT;
 
 let mean = 0;

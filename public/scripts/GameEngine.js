@@ -689,7 +689,7 @@ class SceneObject {
 
   //------------------------------------ RigidBody 2d Methods ------------------------------------
   calculateRotationalInertia() {
-    let adjustment = 1000;
+    let adjustment = 100;
     if (this.shape === 'circle') {
       return ((1 / 12) * this.mass * this.radius ** 2) / adjustment;
     } else if (this.shape === 'box' || this.shape === 'triangle') {
@@ -710,8 +710,8 @@ class SceneObject {
 
     //Calculate Acceleration
     let acceleration = this.force
+      .addVector(this.gravity.multiplyScalar(time))
       .divideScalar(this.mass)
-      .addVector(this.gravity)
       .multiplyScalar(time);
 
     //Apply a portion of the acceleration to the linearVelocity
@@ -723,7 +723,7 @@ class SceneObject {
     );
 
     //Add the rotationalVelocity to the the object position
-    this.rotation += this.rotationalVelocity * time;
+    this.rotation += this.rotationalVelocity;
 
     //Set the object force to 0
     this.force = nullVector;
@@ -1079,7 +1079,7 @@ export class GameEngine {
       j /= contactCount;
 
       let impulse = normal.multiplyScalar(j);
-      console.log(impulse);
+
       impulseList[i] = impulse;
     }
 
@@ -1089,24 +1089,18 @@ export class GameEngine {
       let ra = raList[i];
       let rb = rbList[i];
 
-      let invA = bodyA.invMass;
-      let invB = bodyB.invMass;
-
-      let invInertiaA = bodyA.invInertia;
-      let invInertiaB = bodyB.invInertia;
-
       //Adjust the linear Velocity and rotational Velocity for bodyA
       bodyA.linearVelocity = bodyA.linearVelocity.addVector(
-        impulse.opositeVector().multiplyScalar(invA)
+        impulse.multiplyScalar(bodyA.invMass).opositeVector()
       );
-      bodyA.rotationalVelocity += -FlatMath.cross(ra, impulse) * invInertiaA;
-
+      bodyA.rotationalVelocity +=
+        -FlatMath.cross(ra, impulse) * bodyA.invInertia;
       //Adjust the linear Velocity and rotational Velocity for bodyB
-
       bodyB.linearVelocity = bodyB.linearVelocity.addVector(
-        impulse.multiplyScalar(invB)
+        impulse.multiplyScalar(bodyB.invMass)
       );
-      bodyB.rotationalVelocity += FlatMath.cross(rb, impulse) * invInertiaB;
+      bodyB.rotationalVelocity +=
+        FlatMath.cross(rb, impulse) * bodyB.invInertia;
     }
   }
   #stepBodies(time, precision) {
@@ -1184,5 +1178,20 @@ export class GameEngine {
       c.fill();
       c.closePath();
     }
+    // for (const id in this.contactList) {
+    //   let manifold = this.contactList[id];
+
+    //   c.beginPath();
+    //   c.fillStyle = '#fff';
+
+    //   if (!manifold.contact1.equals(nullVector)) {
+    //     c.arc(manifold.contact1.x, manifold.contact1.y, 5, 0, 2 * Math.PI);
+    //   }
+    //   if (!manifold.contact2.equals(nullVector)) {
+    //     c.arc(manifold.contact2.x, manifold.contact2.y, 5, 0, 2 * Math.PI);
+    //   }
+    //   c.fill();
+    //   c.closePath();
+    // }
   }
 }
