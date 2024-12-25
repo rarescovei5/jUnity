@@ -522,6 +522,9 @@ class SceneObject {
 
     this.elasticity;
 
+    this.staticFriction = 0.6;
+    this.dynamicFriction = 0.4;
+
     this.linearVelocity = nullVector;
     this.rotationalVelocity = 0;
 
@@ -549,7 +552,7 @@ class SceneObject {
     this.type = type;
 
     //Mass of the object
-    this.gravity = gravity;
+    this.gravity = gravity.divideScalar(100);
     this.density = density;
 
     //Elasticity
@@ -745,7 +748,7 @@ export class GameEngine {
     this.taggedObjects = {};
 
     //Used for resolving collisions realistically
-    this.contactList = [];
+    this.contactPairs = [];
   }
 
   //With this you can add objects to the scene
@@ -883,88 +886,95 @@ export class GameEngine {
   //Physics
   simulateObjectPhysics(precision, time = 1) {
     precision = FlatMath.clamp(precision, this.minPrecision, this.maxPrecision);
-    //Have a cache so you don't double check
-    let cache = new Set();
 
     for (let it = 0; it < precision; it++) {
-      //Apply velocities to each object -- Movement
+      this.contactPairs = [];
       this.#stepBodies(time, precision);
+      this.#broadPhase();
+      this.#narrowPhase(time, precision);
+    }
+  }
+  #broadPhase() {
+    let cache = new Set();
 
-      this.contactList = []; // reset contact list
-      //Loop Through every object with a rigidBody2D -- Collisions
-      for (let i = 0; i < this.objectsWithRigidBody2D.length; i++) {
-        //Get objectA
-        let objectA = this.objects[this.objectsWithRigidBody2D[i]];
+    for (let i = 0; i < this.objectsWithRigidBody2D.length; i++) {
+      //Get objectA
+      let objectA = this.objects[this.objectsWithRigidBody2D[i]];
 
-        //If objectA has no colider then continue (since it can't interact with others)
-        if (!objectA.colider) {
+      //If objectA has no colider then continue (since it can't interact with others)
+      if (!objectA.colider) {
+        continue;
+      }
+
+      //Loop through every object with a colider
+      for (let j = 0; j < this.objectsWithColider.length; j++) {
+        /* Check if we've looked at this before */
+        if (
+          this.objectsWithRigidBody2D[i] === this.objectsWithColider[j] ||
+          cache.has(this.objectsWithColider[j] + this.objectsWithRigidBody2D[i])
+        ) {
+          continue;
+        } else {
+          cache.add(
+            this.objectsWithRigidBody2D[i] + this.objectsWithColider[j]
+          );
+        }
+
+        // Get ObjectB
+        let objectB = this.objects[this.objectsWithColider[j]];
+
+        //If they are both static continute since they can t interact with eachother
+        if (objectA.type === 'static' && objectB.type === 'static') {
           continue;
         }
 
-        //Loop through every object with a colider
-        for (let j = 0; j < this.objectsWithColider.length; j++) {
-          /* Check if we've looked at this before */
-          if (
-            this.objectsWithRigidBody2D[i] === this.objectsWithColider[j] ||
-            cache.has(
-              this.objectsWithColider[j] + this.objectsWithRigidBody2D[i]
-            )
-          ) {
-            continue;
-          } else {
-            cache.add(
-              this.objectsWithRigidBody2D[i] + this.objectsWithColider[j]
-            );
-          }
-
-          // Get ObjectB
-          let objectB = this.objects[this.objectsWithColider[j]];
-
-          //If they are both static continute since they can t interact with eachother
-          if (objectA.type === 'static' && objectB.type === 'static') {
-            continue;
-          }
-
-          //Simpler test than the collision, we are checking if their axis aligned hitboxes collide
-          if (!Collision.intersectAABBs(objectA.AABB, objectB.AABB)) {
-            continue;
-          }
-
-          //Simulate the collisions
-          let collision = Collision.doObjectsCollide(objectA, objectB);
-
-          if (collision) {
-            this.separateBodies(
-              objectA,
-              objectB,
-              collision.normal,
-              collision.depth
-            );
-            //Add this contact to the contact list
-            let collisionContact = Collision.findContactPoints(
-              objectA,
-              objectB
-            );
-
-            let manifold = new FlatManifold(
-              objectA,
-              objectB,
-              collision.normal,
-              collision.depth,
-              collisionContact.contact1,
-              collisionContact.contact2,
-              collisionContact.contactCount
-            );
-            this.contactList.push(manifold);
-          }
+        //Simpler test than the collision, we are checking if their axis aligned hitboxes collide
+        if (!Collision.intersectAABBs(objectA.AABB, objectB.AABB)) {
+          continue;
         }
-      }
 
-      //Loop Through Contact Manifolds
-      for (let i = 0; i < this.contactList.length; i++) {
-        let manifold = this.contactList[i];
-        this.calculateIntersectionImpulseRotation(manifold, time, precision);
+        this.contactPairs.push([objectA.name, objectB.name]);
       }
+    }
+  }
+  #narrowPhase(time, precision) {
+    for (let i = 0; i < this.contactPairs.length; i++) {
+      let pair = this.contactPairs[i];
+      let objectA = this.objects[pair[0]];
+      let objectB = this.objects[pair[1]];
+
+      let collision = Collision.doObjectsCollide(objectA, objectB);
+
+      if (collision) {
+        this.separateBodies(
+          objectA,
+          objectB,
+          collision.normal,
+          collision.depth
+        );
+
+        //Add this contact to the contact list
+        let collisionContact = Collision.findContactPoints(objectA, objectB);
+
+        let manifold = new FlatManifold(
+          objectA,
+          objectB,
+          collision.normal,
+          collision.depth,
+          collisionContact.contact1,
+          collisionContact.contact2,
+          collisionContact.contactCount
+        );
+
+        //Resolve the collision
+        this.resolveCollisionWithRotationAndFriction(manifold, time, precision);
+      }
+    }
+  }
+  #stepBodies(time, precision) {
+    for (let i = 0; i < this.objectsWithRigidBody2D.length; i++) {
+      let object = this.objects[this.objectsWithRigidBody2D[i]];
+      object.step(time, precision);
     }
   }
   separateBodies(objectA, objectB, normal, depth) {
@@ -1098,10 +1108,170 @@ export class GameEngine {
         (FlatMath.cross(rb, impulse) * bodyB.invInertia * time) / precision;
     }
   }
-  #stepBodies(time, precision) {
-    for (let i = 0; i < this.objectsWithRigidBody2D.length; i++) {
-      let object = this.objects[this.objectsWithRigidBody2D[i]];
-      object.step(time, precision);
+  resolveCollisionWithRotationAndFriction(contact, time, precision) {
+    let bodyA = contact.bodyA;
+    let bodyB = contact.bodyB;
+    let normal = contact.normal;
+    let contact1 = contact.contact1;
+    let contact2 = contact.contact2;
+    let contactCount = contact.contactCount;
+
+    let e = Math.min(bodyA.elasticity, bodyB.elasticity);
+
+    let sf = bodyA.staticFriction + bodyB.staticFriction * 0.5;
+    let df = bodyA.dynamicFriction + bodyB.dynamicFriction * 0.5;
+
+    let contactList = [contact1, contact2];
+
+    let impulseList = [nullVector, nullVector];
+    let frictionImpulseList = [nullVector, nullVector];
+
+    let jList = new Float32Array(2);
+
+    let raList = [nullVector, nullVector];
+    let rbList = [nullVector, nullVector];
+
+    for (let i = 0; i < contactCount; i++) {
+      let ra = contactList[i].subtractVector(bodyA.position);
+      let rb = contactList[i].subtractVector(bodyB.position);
+
+      raList[i] = ra;
+      rbList[i] = rb;
+
+      let raPerp = new FlatVector(-ra.y, ra.x);
+      let rbPerp = new FlatVector(-rb.y, rb.x);
+
+      let angularLinearVelocityA = raPerp.multiplyScalar(
+        bodyA.rotationalVelocity
+      );
+      let angularLinearVelocityB = rbPerp.multiplyScalar(
+        bodyB.rotationalVelocity
+      );
+
+      let relativeVelocity = bodyB.linearVelocity
+        .addVector(angularLinearVelocityB)
+        .subtractVector(bodyA.linearVelocity.addVector(angularLinearVelocityA));
+
+      let contactVelocityMag = FlatMath.dot(relativeVelocity, normal);
+
+      if (contactVelocityMag > 0) {
+        continue;
+      }
+
+      let raPerpDotN = FlatMath.dot(raPerp, normal);
+      let rbPerpDotN = FlatMath.dot(rbPerp, normal);
+
+      let j = -(1 + e) * contactVelocityMag;
+
+      let den =
+        bodyA.invMass +
+        bodyB.invMass +
+        raPerpDotN * raPerpDotN * bodyA.invInertia +
+        rbPerpDotN * rbPerpDotN * bodyB.invInertia;
+
+      j /= den;
+      j /= contactCount;
+
+      jList[i] = j;
+
+      let impulse = normal.multiplyScalar(j);
+
+      impulseList[i] = impulse;
+    }
+
+    for (let i = 0; i < impulseList.length; i++) {
+      let impulse = impulseList[i];
+
+      let ra = raList[i];
+      let rb = rbList[i];
+
+      //Adjust the linear Velocity and rotational Velocity for bodyA
+      bodyA.linearVelocity = bodyA.linearVelocity.addVector(
+        impulse.multiplyScalar(bodyA.invMass).opositeVector()
+      );
+      bodyA.rotationalVelocity +=
+        (-FlatMath.cross(ra, impulse) * bodyA.invInertia * time) / precision;
+      //Adjust the linear Velocity and rotational Velocity for bodyB
+      bodyB.linearVelocity = bodyB.linearVelocity.addVector(
+        impulse.multiplyScalar(bodyB.invMass)
+      );
+      bodyB.rotationalVelocity +=
+        (FlatMath.cross(rb, impulse) * bodyB.invInertia * time) / precision;
+    }
+
+    for (let i = 0; i < contactCount; i++) {
+      let ra = contactList[i].subtractVector(bodyA.position);
+      let rb = contactList[i].subtractVector(bodyB.position);
+
+      raList[i] = ra;
+      rbList[i] = rb;
+
+      let raPerp = new FlatVector(-ra.y, ra.x);
+      let rbPerp = new FlatVector(-rb.y, rb.x);
+
+      let angularLinearVelocityA = raPerp.multiplyScalar(
+        bodyA.rotationalVelocity
+      );
+      let angularLinearVelocityB = rbPerp.multiplyScalar(
+        bodyB.rotationalVelocity
+      );
+
+      let relativeVelocity = bodyB.linearVelocity
+        .addVector(angularLinearVelocityB)
+        .subtractVector(bodyA.linearVelocity.addVector(angularLinearVelocityA));
+
+      let tangent = relativeVelocity.subtractVector(
+        normal.multiplyScalar(FlatMath.dot(relativeVelocity, normal))
+      );
+
+      if (FlatMath.aproximatelyEqual(tangent, nullVector)) {
+        continue;
+      } else {
+        tangent = FlatMath.normalize(tangent);
+      }
+
+      let raPerpDotT = FlatMath.dot(raPerp, tangent);
+      let rbPerpDotT = FlatMath.dot(rbPerp, tangent);
+
+      let den =
+        bodyA.invMass +
+        bodyB.invMass +
+        raPerpDotT * raPerpDotT * bodyA.invInertia +
+        rbPerpDotT * rbPerpDotT * bodyB.invInertia;
+
+      let jt = -FlatMath.dot(relativeVelocity, tangent);
+      jt /= den;
+      jt /= contactCount;
+
+      let frictionImpulse;
+      if (Math.abs(jt) <= jList[i] * sf) {
+        frictionImpulse = tangent.multiplyScalar(jt);
+      } else {
+        frictionImpulse = tangent.multiplyScalar(jList[i] * -df);
+      }
+      frictionImpulseList[i] = frictionImpulse;
+    }
+
+    for (let i = 0; i < frictionImpulseList.length; i++) {
+      let frictionImpulse = frictionImpulseList[i];
+
+      let ra = raList[i];
+      let rb = rbList[i];
+
+      //Adjust the linear Velocity and rotational Velocity for bodyA
+      bodyA.linearVelocity = bodyA.linearVelocity.addVector(
+        frictionImpulse.multiplyScalar(bodyA.invMass).opositeVector()
+      );
+      bodyA.rotationalVelocity +=
+        (-FlatMath.cross(ra, frictionImpulse) * bodyA.invInertia * time) /
+        precision;
+      //Adjust the linear Velocity and rotational Velocity for bodyB
+      bodyB.linearVelocity = bodyB.linearVelocity.addVector(
+        frictionImpulse.multiplyScalar(bodyB.invMass)
+      );
+      bodyB.rotationalVelocity +=
+        (FlatMath.cross(rb, frictionImpulse) * bodyB.invInertia * time) /
+        precision;
     }
   }
 
@@ -1173,20 +1343,5 @@ export class GameEngine {
       c.fill();
       c.closePath();
     }
-    // for (const id in this.contactList) {
-    //   let manifold = this.contactList[id];
-
-    //   c.beginPath();
-    //   c.fillStyle = '#fff';
-
-    //   if (!manifold.contact1.equals(nullVector)) {
-    //     c.arc(manifold.contact1.x, manifold.contact1.y, 5, 0, 2 * Math.PI);
-    //   }
-    //   if (!manifold.contact2.equals(nullVector)) {
-    //     c.arc(manifold.contact2.x, manifold.contact2.y, 5, 0, 2 * Math.PI);
-    //   }
-    //   c.fill();
-    //   c.closePath();
-    // }
   }
 }
