@@ -1,4 +1,4 @@
-import { FlatVector, FlatMath, GameEngine } from './GameEngine.js';
+import { FlatVector, GameEngine } from './GameEngine.js';
 
 //Javascript Canvas
 let canvas = document.getElementById('canvas');

@@ -1,5 +1,5 @@
-//Instead of game.js, change the file to where you have your canvas,
-import { c } from './game.js';
+//Instead of templateGame.js, change the file to where you have your canvas,
+import { c } from './templateGame.js';
 
 //-----------------------==----------- Utility Classes ----------------------------------
 export class FlatVector {
@@ -44,7 +44,7 @@ export class FlatVector {
 }
 let nullVector = new FlatVector(0, 0);
 
-export const FlatMath = {
+const FlatMath = {
   clamp: function (value, min, max) {
     return Math.max(min, Math.min(max, value));
   },
