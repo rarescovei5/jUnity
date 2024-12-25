@@ -552,7 +552,7 @@ class SceneObject {
     this.type = type;
 
     //Mass of the object
-    this.gravity = gravity.divideScalar(100);
+    this.gravity = gravity.divideScalar(1000);
     this.density = density;
 
     //Elasticity
@@ -708,9 +708,8 @@ class SceneObject {
 
     //Calculate Acceleration
     let acceleration = this.force
-      .addVector(this.gravity.multiplyScalar(time))
-      .divideScalar(this.mass)
-      .multiplyScalar(time);
+      .addVector(this.gravity)
+      .divideScalar(this.mass);
 
     //Apply a portion of the acceleration to the linearVelocity
     this.linearVelocity = this.linearVelocity.addVector(acceleration);
@@ -721,7 +720,7 @@ class SceneObject {
     );
 
     //Add the rotationalVelocity to the the object position
-    this.rotation += this.rotationalVelocity;
+    this.rotation += this.rotationalVelocity * 1.5;
 
     //Set the object force to 0
     this.force = nullVector;
@@ -908,9 +907,12 @@ export class GameEngine {
 
       //Loop through every object with a colider
       for (let j = 0; j < this.objectsWithColider.length; j++) {
+        // If it's the same object continue
+        if (this.objectsWithRigidBody2D[i] === this.objectsWithColider[j]) {
+          continue;
+        }
         /* Check if we've looked at this before */
         if (
-          this.objectsWithRigidBody2D[i] === this.objectsWithColider[j] ||
           cache.has(this.objectsWithColider[j] + this.objectsWithRigidBody2D[i])
         ) {
           continue;
@@ -946,7 +948,7 @@ export class GameEngine {
       let collision = Collision.doObjectsCollide(objectA, objectB);
 
       if (collision) {
-        this.separateBodies(
+        this.#separateBodies(
           objectA,
           objectB,
           collision.normal,
@@ -967,7 +969,7 @@ export class GameEngine {
         );
 
         //Resolve the collision
-        this.resolveCollisionWithRotationAndFriction(manifold, time, precision);
+        this.#resolveCollisionWithRotationAndFriction(manifold);
       }
     }
   }
@@ -977,29 +979,28 @@ export class GameEngine {
       object.step(time, precision);
     }
   }
-  separateBodies(objectA, objectB, normal, depth) {
+  #separateBodies(objectA, objectB, normal, depth) {
     //Move them outside of each other so they don t collide anymore
 
-    let amount;
+    let amount = normal.multiplyScalar(depth);
 
     if (objectA.type === 'dynamic') {
       if (objectB.type === 'dynamic') {
         //Move them both out of the collision
-        amount = normal.multiplyScalar(depth).divideScalar(2);
-        objectA.move(amount.opositeVector());
+
+        objectA.move(amount.divideScalar(2).opositeVector());
         objectB.move(amount);
       } else if (objectB.type === 'static') {
         //Move objectA out of the collision
-        amount = normal.multiplyScalar(depth).opositeVector();
-        objectA.move(amount);
+
+        objectA.move(amount.opositeVector());
       }
     } else if (objectA.type === 'static') {
       //Move objectB out of the collision
-      amount = normal.divideScalar(2).multiplyScalar(depth);
       objectB.move(amount);
     }
   }
-  calculateIntersectionImpulse(contact) {
+  #resolveCollision(contact) {
     let bodyA = contact.bodyA;
     let bodyB = contact.bodyB;
     let normal = contact.normal;
@@ -1027,7 +1028,7 @@ export class GameEngine {
       impulse.multiplyScalar(bodyB.invMass)
     );
   }
-  calculateIntersectionImpulseRotation(contact, time, precision) {
+  #resolveCollisionWithRotation(contact) {
     let bodyA = contact.bodyA;
     let bodyB = contact.bodyB;
     let normal = contact.normal;
@@ -1099,16 +1100,16 @@ export class GameEngine {
         impulse.multiplyScalar(bodyA.invMass).opositeVector()
       );
       bodyA.rotationalVelocity +=
-        (-FlatMath.cross(ra, impulse) * bodyA.invInertia * time) / precision;
+        -FlatMath.cross(ra, impulse) * bodyA.invInertia;
       //Adjust the linear Velocity and rotational Velocity for bodyB
       bodyB.linearVelocity = bodyB.linearVelocity.addVector(
         impulse.multiplyScalar(bodyB.invMass)
       );
       bodyB.rotationalVelocity +=
-        (FlatMath.cross(rb, impulse) * bodyB.invInertia * time) / precision;
+        FlatMath.cross(rb, impulse) * bodyB.invInertia;
     }
   }
-  resolveCollisionWithRotationAndFriction(contact, time, precision) {
+  #resolveCollisionWithRotationAndFriction(contact) {
     let bodyA = contact.bodyA;
     let bodyB = contact.bodyB;
     let normal = contact.normal;
@@ -1190,13 +1191,13 @@ export class GameEngine {
         impulse.multiplyScalar(bodyA.invMass).opositeVector()
       );
       bodyA.rotationalVelocity +=
-        (-FlatMath.cross(ra, impulse) * bodyA.invInertia * time) / precision;
+        -FlatMath.cross(ra, impulse) * bodyA.invInertia;
       //Adjust the linear Velocity and rotational Velocity for bodyB
       bodyB.linearVelocity = bodyB.linearVelocity.addVector(
         impulse.multiplyScalar(bodyB.invMass)
       );
       bodyB.rotationalVelocity +=
-        (FlatMath.cross(rb, impulse) * bodyB.invInertia * time) / precision;
+        FlatMath.cross(rb, impulse) * bodyB.invInertia;
     }
 
     for (let i = 0; i < contactCount; i++) {
@@ -1224,7 +1225,7 @@ export class GameEngine {
         normal.multiplyScalar(FlatMath.dot(relativeVelocity, normal))
       );
 
-      if (FlatMath.aproximatelyEqual(tangent, nullVector)) {
+      if (FlatMath.vAproximatelyEqual(tangent, nullVector)) {
         continue;
       } else {
         tangent = FlatMath.normalize(tangent);
@@ -1249,6 +1250,7 @@ export class GameEngine {
       } else {
         frictionImpulse = tangent.multiplyScalar(jList[i] * -df);
       }
+
       frictionImpulseList[i] = frictionImpulse;
     }
 
@@ -1263,15 +1265,13 @@ export class GameEngine {
         frictionImpulse.multiplyScalar(bodyA.invMass).opositeVector()
       );
       bodyA.rotationalVelocity +=
-        (-FlatMath.cross(ra, frictionImpulse) * bodyA.invInertia * time) /
-        precision;
+        -FlatMath.cross(ra, frictionImpulse) * bodyA.invInertia;
       //Adjust the linear Velocity and rotational Velocity for bodyB
       bodyB.linearVelocity = bodyB.linearVelocity.addVector(
         frictionImpulse.multiplyScalar(bodyB.invMass)
       );
       bodyB.rotationalVelocity +=
-        (FlatMath.cross(rb, frictionImpulse) * bodyB.invInertia * time) /
-        precision;
+        FlatMath.cross(rb, frictionImpulse) * bodyB.invInertia;
     }
   }
 

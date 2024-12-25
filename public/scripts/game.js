@@ -18,7 +18,7 @@ c.transform(1, 0, 0, -1, 0, canvas.height);
 //"We have Unity at home" ahh
 let gameEngine = new GameEngine();
 
-let gravity = new FlatVector(0, -1);
+let gravity = new FlatVector(0, -0.1);
 
 let id = 0;
 function createObject(posX, posY, angle, width, height, type) {
@@ -82,7 +82,10 @@ function update(time) {
   gameEngine.drawObjects();
 
   mean += deltaT;
-  avgTime.textContent = (mean / i).toFixed(2);
+  avgTime.textContent = `${(mean / i).toFixed(2)}ms ${(
+    1000 /
+    (mean / i)
+  ).toFixed(2)}fps ${id} objects`;
   i++;
 
   previousT = time;
