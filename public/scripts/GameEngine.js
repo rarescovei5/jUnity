@@ -78,7 +78,7 @@ export const FlatMath = {
     return Math.abs(a - b) < 0.001;
   },
   vAproximatelyEqual(a, b) {
-    return this.distanceSquared(a, b) < 0.001;
+    return this.distanceSquared(a, b) < 0.00001;
   },
 };
 const Collision = {
@@ -552,7 +552,7 @@ class SceneObject {
     this.type = type;
 
     //Mass of the object
-    this.gravity = gravity.divideScalar(1000);
+    this.gravity = gravity.multiplyScalar(0.0001);
     this.density = density;
 
     //Elasticity

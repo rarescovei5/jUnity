@@ -18,7 +18,7 @@ c.transform(1, 0, 0, -1, 0, canvas.height);
 //"We have Unity at home" ahh
 let gameEngine = new GameEngine();
 
-let gravity = new FlatVector(0, -0.1);
+let gravity = new FlatVector(0, -1);
 
 let id = 0;
 function createObject(posX, posY, angle, width, height, type) {
