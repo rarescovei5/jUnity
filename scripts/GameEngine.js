@@ -740,9 +740,9 @@ export class GameEngine {
     this.maxPrecision = 100;
 
     //Scene Data Lists
-    this.objectsWithRender = [];
-    this.objectsWithRigidBody2D = [];
-    this.objectsWithColider = [];
+    this.objectsWithRender = new Set();
+    this.objectsWithRigidBody2D = new Set();
+    this.objectsWithColider = new Set();
 
     this.taggedObjects = {};
 
@@ -838,33 +838,36 @@ export class GameEngine {
     }
   }
   updateDataListSR(sceneObject) {
-    for (let i = 0; i < this.objectsWithRender.length; i++) {
-      if (this.objectsWithRender[i] === sceneObject.name) {
-        this.objectsWithRender.splice(i, 1);
+    if (!this.objectsWithRender.has(sceneObject.name)) {
+      if (sceneObject.shape && sceneObject.color) {
+        this.objectsWithRender.add(sceneObject.name);
       }
-    }
-    if (sceneObject.shape) {
-      this.objectsWithRender.push(sceneObject.name);
+    } else {
+      if (!(sceneObject.shape && sceneObject.color)) {
+        this.objectsWithRender.remove(sceneObject.name);
+      }
     }
   }
   updateDataListCL(sceneObject) {
-    for (let i = 0; i < this.objectsWithColider.length; i++) {
-      if (this.objectsWithColider[i] === sceneObject.name) {
-        this.objectsWithColider.splice(i, 1);
+    if (!this.objectsWithColider.has(sceneObject.name)) {
+      if (sceneObject.colider) {
+        this.objectsWithColider.add(sceneObject.name);
       }
-    }
-    if (sceneObject.colider) {
-      this.objectsWithColider.push(sceneObject.name);
+    } else {
+      if (!sceneObject.colider) {
+        this.objectsWithColider.remove(sceneObject.name);
+      }
     }
   }
   updateDataListRB(sceneObject) {
-    for (let i = 0; i < this.objectsWithRigidBody2D.length; i++) {
-      if (this.objectsWithRigidBody2D[i] === sceneObject.name) {
-        this.objectsWithRigidBody2D.splice(i, 1);
+    if (!this.objectsWithRigidBody2D.has(sceneObject.name)) {
+      if (sceneObject.type) {
+        this.objectsWithRigidBody2D.add(sceneObject.name);
       }
-    }
-    if (sceneObject.type) {
-      this.objectsWithRigidBody2D.push(sceneObject.name);
+    } else {
+      if (!sceneObject.type) {
+        this.objectsWithRigidBody2D.remove(sceneObject.name);
+      }
     }
   }
   updateDataListTG(sceneObject) {
@@ -896,9 +899,9 @@ export class GameEngine {
   #broadPhase() {
     let cache = new Set();
 
-    for (let i = 0; i < this.objectsWithRigidBody2D.length; i++) {
+    for (const nameA of this.objectsWithRigidBody2D) {
       //Get objectA
-      let objectA = this.objects[this.objectsWithRigidBody2D[i]];
+      let objectA = this.objects[nameA];
 
       //If objectA has no colider then continue (since it can't interact with others)
       if (!objectA.colider) {
@@ -906,28 +909,25 @@ export class GameEngine {
       }
 
       //Loop through every object with a colider
-      for (let j = 0; j < this.objectsWithColider.length; j++) {
+      for (const nameB of this.objectsWithColider) {
         // If it's the same object continue
-        if (this.objectsWithRigidBody2D[i] === this.objectsWithColider[j]) {
+        if (nameA === nameB) {
           continue;
-        }
-        /* Check if we've looked at this before */
-        if (
-          cache.has(this.objectsWithColider[j] + this.objectsWithRigidBody2D[i])
-        ) {
-          continue;
-        } else {
-          cache.add(
-            this.objectsWithRigidBody2D[i] + this.objectsWithColider[j]
-          );
         }
 
         // Get ObjectB
-        let objectB = this.objects[this.objectsWithColider[j]];
+        let objectB = this.objects[nameB];
 
         //If they are both static continute since they can t interact with eachother
         if (objectA.type === 'static' && objectB.type === 'static') {
           continue;
+        }
+
+        /* Check if we've looked at this before */
+        if (cache.has(nameB + nameA)) {
+          continue;
+        } else {
+          cache.add(nameA + nameB);
         }
 
         //Simpler test than the collision, we are checking if their axis aligned hitboxes collide
@@ -935,7 +935,7 @@ export class GameEngine {
           continue;
         }
 
-        this.contactPairs.push([objectA.name, objectB.name]);
+        this.contactPairs.push([nameA, nameB]);
       }
     }
   }
@@ -974,8 +974,8 @@ export class GameEngine {
     }
   }
   #stepBodies(time, precision) {
-    for (let i = 0; i < this.objectsWithRigidBody2D.length; i++) {
-      let object = this.objects[this.objectsWithRigidBody2D[i]];
+    for (const name of this.objectsWithRigidBody2D) {
+      let object = this.objects[name];
       object.step(time, precision);
     }
   }
@@ -1313,8 +1313,8 @@ export class GameEngine {
 
   //Looks at this.objectWithRenderers and draws everything in there
   drawObjects() {
-    for (const id in this.objectsWithRender) {
-      let sceneObject = this.objects[this.objectsWithRender[id]];
+    for (const name of this.objectsWithRender) {
+      let sceneObject = this.objects[name];
 
       c.beginPath();
       c.fillStyle = sceneObject.color;
