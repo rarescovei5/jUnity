@@ -985,8 +985,9 @@ export class GameEngine {
     if (objectA.type === 'dynamic') {
       if (objectB.type === 'dynamic') {
         //Move them both out of the collision
-        objectA.move(amount.multiplyScalar(0.5).opositeVector());
-        objectB.move(amount.multiplyScalar(0.5));
+        amount = amount.multiplyScalar(0.5);
+        objectA.move(amount.opositeVector());
+        objectB.move(amount);
       } else if (objectB.type === 'static') {
         //Move objectA out of the collision
 
