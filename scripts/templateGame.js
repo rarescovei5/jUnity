@@ -32,7 +32,6 @@ function createObject(posX, posY, angle, width, height, type) {
   gameEngine.updateDataListSR(object);
   gameEngine.updateDataListCL(object);
   gameEngine.updateDataListRB(object);
-  console.log(gameEngine);
 
   id += 1;
 }
@@ -92,5 +91,4 @@ function update(time) {
   previousT = time;
   window.requestAnimationFrame(update);
 }
-console.log(gameEngine);
 window.requestAnimationFrame(update);

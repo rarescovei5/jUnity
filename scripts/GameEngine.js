@@ -23,13 +23,15 @@ export class FlatVector {
     return new FlatVector(x, y);
   }
   divideScalar(scalar) {
-    let x = this.x / scalar;
-    let y = this.y / scalar;
+    let inv = 1 / scalar;
+    let x = this.x * inv;
+    let y = this.y * inv;
     return new FlatVector(x, y);
   }
   transform(transform = { angle: 0, x: 0, y: 0 }) {
-    let sin = Math.sin((transform.angle * Math.PI) / 180);
-    let cos = Math.cos((transform.angle * Math.PI) / 180);
+    let angle = (transform.angle * Math.PI) / 180;
+    let sin = Math.sin(angle);
+    let cos = Math.cos(angle);
     return new FlatVector(
       cos * this.x - sin * this.y + transform.x,
       sin * this.x + cos * this.y + transform.y
@@ -65,8 +67,8 @@ const FlatMath = {
     return dx * dx + dy * dy;
   },
   normalize: function (v) {
-    let len = this.length(v);
-    return new FlatVector(v.x / len, v.y / len);
+    let len = 1 / this.length(v);
+    return new FlatVector(v.x * len, v.y * len);
   },
   dot: function (a, b) {
     return a.x * b.x + a.y * b.y;
@@ -350,16 +352,12 @@ const Collision = {
     }
   },
   intersectAABBs: function (a, b) {
-    if (
+    return !(
       a.max.x <= b.min.x ||
       b.max.x <= a.min.x ||
       a.max.y <= b.min.y ||
       b.max.y <= a.min.y
-    ) {
-      return false;
-    } else {
-      return true;
-    }
+    );
   },
   //Point of Collision stuff
   findContactPoints: function (objectA, objectB) {
@@ -576,9 +574,9 @@ class SceneObject {
   //------------------------------------ Transform Methods ------------------------------------
   #calculateBoxVertices() {
     //Initialize directions
-    let left = -this.width / 2;
+    let left = -this.width >> 1;
     let right = -left;
-    let bottom = -this.height / 2;
+    let bottom = -this.height >> 1;
     let top = -bottom;
 
     //Calculate vertices
@@ -603,7 +601,7 @@ class SceneObject {
   }
   #calculateTriangleVertices() {
     //Initialize directions
-    let left = -this.width / 2;
+    let left = -this.width >> 1;
     let right = -left;
     let bottom = -this.height * (1 / 3);
     let top = this.height * (2 / 3);
@@ -687,13 +685,12 @@ class SceneObject {
 
   //------------------------------------ RigidBody 2d Methods ------------------------------------
   calculateRotationalInertia() {
-    let adjustment = 100;
+    let adjustment = 0.01;
     if (this.shape === 'circle') {
-      return ((1 / 12) * this.mass * this.radius ** 2) / adjustment;
+      return (1 / 12) * this.mass * this.radius ** 2 * adjustment;
     } else if (this.shape === 'box' || this.shape === 'triangle') {
       return (
-        ((1 / 12) * this.mass * (this.width ** 2 + this.height ** 2)) /
-        adjustment
+        (1 / 12) * this.mass * (this.width ** 2 + this.height ** 2) * adjustment
       );
     }
   }
@@ -709,7 +706,7 @@ class SceneObject {
     //Calculate Acceleration
     let acceleration = this.force
       .addVector(this.gravity)
-      .divideScalar(this.mass);
+      .multiplyScalar(this.invMass);
 
     //Apply a portion of the acceleration to the linearVelocity
     this.linearVelocity = this.linearVelocity.addVector(acceleration);
@@ -891,6 +888,7 @@ export class GameEngine {
 
     for (let it = 0; it < precision; it++) {
       this.contactPairs = [];
+
       this.#stepBodies(time, precision);
       this.#broadPhase();
       this.#narrowPhase(time, precision);
@@ -987,9 +985,8 @@ export class GameEngine {
     if (objectA.type === 'dynamic') {
       if (objectB.type === 'dynamic') {
         //Move them both out of the collision
-
-        objectA.move(amount.divideScalar(2).opositeVector());
-        objectB.move(amount);
+        objectA.move(amount.multiplyScalar(0.5).opositeVector());
+        objectB.move(amount.multiplyScalar(0.5));
       } else if (objectB.type === 'static') {
         //Move objectA out of the collision
 
