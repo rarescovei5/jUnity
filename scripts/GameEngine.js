@@ -502,6 +502,7 @@ class SceneObject {
     this.vertices = [];
     this.AABB = { min: nullVector, max: nullVector };
 
+    this.calcFun;
     //Sprite Renderer Properties
     this.shape;
     this.color;
@@ -539,6 +540,15 @@ class SceneObject {
   addSpriteRenderer(shape, color) {
     this.shape = shape;
     this.color = color;
+
+    if (this.shape === 'box') {
+      this.calcFun = this.#calculateBoxVertices;
+    } else if (this.shape === 'triangle') {
+      this.calcFun = this.#calculateTriangleVertices;
+    } else if (this.shape === 'circle') {
+      this.calcFun = () => {};
+      this.radius = this.width / 2;
+    }
 
     this.#recalculateHitbox();
   }
@@ -650,13 +660,7 @@ class SceneObject {
     this.AABB.max = new FlatVector(maxX, maxY);
   }
   #recalculateHitbox() {
-    if (this.shape === 'box') {
-      this.#calculateBoxVertices();
-    } else if (this.shape === 'triangle') {
-      this.#calculateTriangleVertices();
-    } else if (this.shape === 'circle') {
-      this.radius = this.width / 2;
-    }
+    this.calcFun();
     this.#calculateAABB();
   }
   rotateObject(name, angle) {
