@@ -29,10 +29,6 @@ function createObject(posX, posY, angle, width, height, type) {
   object.addSpriteRenderer(shape, `hsl(${Math.random() * 360}deg,100%,50%)`);
   object.addRigidBody(type, 1, gravity, 1, 0.5);
 
-  gameEngine.updateDataListSR(object);
-  gameEngine.updateDataListCL(object);
-  gameEngine.updateDataListRB(object);
-
   id += 1;
 }
 
@@ -60,12 +56,8 @@ createObject(windowW / 2 + 200, 500, 15, 500, 50, 'static');
 createObject(windowW / 2 - 200, 300, -15, 500, 50, 'static');
 let previousT;
 
-let mean = 0;
-let i = 1;
-
 let avgTime = document.getElementById('avgTime');
 
-gameEngine.updateSceneData();
 function update(time) {
   if (previousT == null) {
     previousT = time;
@@ -81,12 +73,9 @@ function update(time) {
   gameEngine.simulateObjectPhysics(100, deltaT);
   gameEngine.drawObjects();
 
-  mean += deltaT;
-  avgTime.textContent = `${(mean / i).toFixed(2)}ms ${(
-    1000 /
-    (mean / i)
-  ).toFixed(2)}fps ${id} objects`;
-  i++;
+  avgTime.textContent = `${deltaT.toFixed(2)}ms ${(1000 / deltaT).toFixed(
+    2
+  )}fps ${id} objects`;
 
   previousT = time;
   window.requestAnimationFrame(update);

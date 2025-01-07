@@ -490,7 +490,8 @@ class FlatManifold {
 //---------------------------------- Scene Object Class ----------------------------------
 
 class SceneObject {
-  constructor(name, position, rotation, width, height) {
+  constructor(origin, name, position, rotation, width, height) {
+    this.originEngine = origin;
     //Transform Properties
     this.position = new FlatVector(position.x, position.y);
     this.rotation = rotation;
@@ -550,10 +551,8 @@ class SceneObject {
       this.radius = this.width / 2;
     }
 
+    this.originEngine.objectsWithRender.add(this.name);
     this.#recalculateHitbox();
-  }
-  addColider() {
-    this.colider = true;
   }
   addRigidBody(type, mass, gravity, density, elasticity) {
     //Type of the rigid body, Dynamic or Static
@@ -580,6 +579,8 @@ class SceneObject {
       this.invMass = 0;
       this.invInertia = 0;
     }
+
+    this.originEngine.objectsWithRigidBody2D.add(this.name);
   }
   //------------------------------------ Transform Methods ------------------------------------
   #calculateBoxVertices() {
@@ -686,7 +687,10 @@ class SceneObject {
   //------------------------------------ Sprite Renderer Methods ------------------------------------
 
   //------------------------------------ Colider  Methods ------------------------------------
-
+  addColider() {
+    this.colider = true;
+    this.originEngine.objectsWithColider.add(this.name);
+  }
   //------------------------------------ RigidBody 2d Methods ------------------------------------
   calculateRotationalInertia() {
     let adjustment = 0.01;
@@ -791,6 +795,7 @@ export class GameEngine {
 
     //Add object to object list
     this.objects[name] = new SceneObject(
+      this,
       name,
       { x: X, y: Y },
       rotation,
@@ -817,72 +822,6 @@ export class GameEngine {
           `origin: removeSceneObject()\nerror: Name "${name}" doesn't exist`
         );
       } catch (err) {}
-    }
-  }
-
-  //Update Game Engine Data Lists
-  updateSceneData() {
-    for (const name in this.objects) {
-      let sceneObject = this.objects[name];
-
-      //Goes through every list and removes the object if it is already there
-      //For rigidbody list and render list check if it has a property exclusive to them and if so add them
-
-      //Update rigid body list
-      this.updateDataListRB(sceneObject);
-      //Update render list
-      this.updateDataListSR(sceneObject);
-      //Update tag list
-      this.updateDataListTG(sceneObject);
-      //Update colider list
-      this.updateDataListCL(sceneObject);
-    }
-  }
-  updateDataListSR(sceneObject) {
-    if (!this.objectsWithRender.has(sceneObject.name)) {
-      if (sceneObject.shape && sceneObject.color) {
-        this.objectsWithRender.add(sceneObject.name);
-      }
-    } else {
-      if (!(sceneObject.shape && sceneObject.color)) {
-        this.objectsWithRender.remove(sceneObject.name);
-      }
-    }
-  }
-  updateDataListCL(sceneObject) {
-    if (!this.objectsWithColider.has(sceneObject.name)) {
-      if (sceneObject.colider) {
-        this.objectsWithColider.add(sceneObject.name);
-      }
-    } else {
-      if (!sceneObject.colider) {
-        this.objectsWithColider.remove(sceneObject.name);
-      }
-    }
-  }
-  updateDataListRB(sceneObject) {
-    if (!this.objectsWithRigidBody2D.has(sceneObject.name)) {
-      if (sceneObject.type) {
-        this.objectsWithRigidBody2D.add(sceneObject.name);
-      }
-    } else {
-      if (!sceneObject.type) {
-        this.objectsWithRigidBody2D.remove(sceneObject.name);
-      }
-    }
-  }
-  updateDataListTG(sceneObject) {
-    for (const tag in this.taggedObjects) {
-      for (let i = 0; i < this.taggedObjects[tag].length; i++) {
-        if (this.taggedObjects[tag][i] === sceneObject.name) {
-          this.taggedObjects[tag].splice(i, 1);
-        }
-      }
-    }
-    if (this.taggedObjects[sceneObject.tag]) {
-      this.taggedObjects[sceneObject.tag].push(sceneObject.name);
-    } else {
-      this.taggedObjects[sceneObject.tag] = [sceneObject.name];
     }
   }
 
