@@ -14,9 +14,9 @@ jUnity is a lightweight, flexible game engine designed to simplify 2D game devel
 
 ### Installation
 
-   ```bash
-   git clone https://github.com/rarescovei5/jUnity.git
-   ```
+```bash
+git clone https://github.com/rarescovei5/jUnity.git
+```
 
 ### Usage
 
@@ -36,11 +36,13 @@ const object = gameEngine.objects[`${name}`];
 #### Adding Components
 
 - **Rigid Body**:
+
   ```javascript
   object.addRigidBody(type: "static" || "dynamic", mass, gravity: FlatVector, density, elasticity);
   ```
 
 - **Collider**:
+
   ```javascript
   object.addColider();
   ```
@@ -53,9 +55,18 @@ const object = gameEngine.objects[`${name}`];
 #### Using Object Hierarchy
 
 ```javascript
-gameEngine.addSceneObject(`${name}`, posX, posY, rotation, width, height, `${parent}`);
+gameEngine.addSceneObject(
+  `${name}`,
+  posX,
+  posY,
+  rotation,
+  width,
+  height,
+  `${parent}`
+);
 const child = gameEngine.objects[`${name}`];
 ```
+
 #### Drawing Elements With Canvas
 
 ```javascript
@@ -69,13 +80,14 @@ canvas.width = windowW;
 canvas.height = windowH;
 
 // Only works with a filped canvas, decided to flip the y-axis so it's more like actual game engines
-c.transform(1, 0, 0, -1, 0, canvas.height); 
+c.transform(1, 0, 0, -1, 0, canvas.height);
 
 //And finally:
 gameEngine.drawObjects();
 ```
 
 #### Simulating the 2D Rigid Bodies
+
 ```javascript
 let previousT;
 function update(time) {
@@ -92,29 +104,8 @@ function update(time) {
   and the time between frames*/
   gameEngine.simulateObjectPhysics(100, deltaT);
 
-
   previousT = time;
   window.requestAnimationFrame(update);
 }
 window.requestAnimationFrame(update);
-
-```
-
-#### Updating the game's Cache Lists
-
-Efficient cache management is essential for the Game Engine, otherwise errors might be encountered. jUnity allows you to update the cache lists for the scene or individual objects:
-
-```javascript
-// Automatically update all scene data
-gameEngine.updateSceneData();
-
-// Update specific data lists for an object
-// Update Sprite Renderer data
-gameEngine.updateDataListSR(object);
-
-// Update Collider data
-gameEngine.updateDataListCL(object);
-
-// Update Rigid Body data
-gameEngine.updateDataListRB(object);
 ```

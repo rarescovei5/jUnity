@@ -54,7 +54,14 @@ createObject(windowW / 2 - 500, 100, 0, 100, 1000, 'static');
 createObject(windowW / 2 + 500, 100, 0, 100, 1000, 'static');
 createObject(windowW / 2 + 200, 500, 15, 500, 50, 'static');
 createObject(windowW / 2 - 200, 300, -15, 500, 50, 'static');
-let previousT;
+
+setInterval(() => {
+  avgTime.textContent = `${deltaT.toFixed(2)}ms ${(1000 / deltaT).toFixed(
+    2
+  )}fps ${id} objects`;
+}, 100);
+
+let previousT, deltaT;
 
 let avgTime = document.getElementById('avgTime');
 
@@ -65,17 +72,13 @@ function update(time) {
     return;
   }
 
-  const deltaT = time - previousT;
+  deltaT = time - previousT;
 
   c.fillStyle = '#0f0f0f';
   c.fillRect(0, 0, canvas.width, canvas.height);
 
   gameEngine.simulateObjectPhysics(100, deltaT);
   gameEngine.drawObjects();
-
-  avgTime.textContent = `${deltaT.toFixed(2)}ms ${(1000 / deltaT).toFixed(
-    2
-  )}fps ${id} objects`;
 
   previousT = time;
   window.requestAnimationFrame(update);
