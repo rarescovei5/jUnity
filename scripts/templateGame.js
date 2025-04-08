@@ -1,20 +1,5 @@
 import { FlatVector, GameEngine } from './GameEngine.js';
 
-//Javascript Canvas
-let canvas = document.getElementById('canvas');
-export let c = canvas.getContext('2d');
-
-let windowW = window.innerWidth;
-let windowH = window.innerHeight;
-
-canvas.width = windowW;
-canvas.height = windowH;
-canvas.style.background = '#0f0f0f';
-
-c.transform(1, 0, 0, -1, 0, canvas.height);
-
-//----------------------------------Using the game engine to make a game----------------------------------
-
 //"We have Unity at home" ahh
 let gameEngine = new GameEngine();
 
@@ -46,14 +31,14 @@ window.addEventListener('keydown', (e) => {
   }
 });
 window.addEventListener('mousedown', (e) => {
-  createObject(e.clientX, windowH - e.clientY, 0, 25, 25, 'dynamic');
+  createObject(e.clientX, window.innerHeight - e.clientY, 0, 25, 25, 'dynamic');
 });
 let shape = 'box';
-createObject(windowW / 2, 100, 0, 1000, 50, 'static');
-createObject(windowW / 2 - 500, 100, 0, 100, 1000, 'static');
-createObject(windowW / 2 + 500, 100, 0, 100, 1000, 'static');
-createObject(windowW / 2 + 200, 500, 15, 500, 50, 'static');
-createObject(windowW / 2 - 200, 300, -15, 500, 50, 'static');
+createObject(window.innerWidth / 2, 100, 0, 1000, 50, 'static');
+createObject(window.innerWidth / 2 - 500, 100, 0, 100, 1000, 'static');
+createObject(window.innerWidth / 2 + 500, 100, 0, 100, 1000, 'static');
+createObject(window.innerWidth / 2 + 200, 500, 15, 500, 50, 'static');
+createObject(window.innerWidth / 2 - 200, 300, -15, 500, 50, 'static');
 
 setInterval(() => {
   avgTime.textContent = `${deltaT.toFixed(2)}ms ${(1000 / deltaT).toFixed(
@@ -74,11 +59,12 @@ function update(time) {
 
   deltaT = time - previousT;
 
-  c.fillStyle = '#0f0f0f';
-  c.fillRect(0, 0, canvas.width, canvas.height);
-
+  console.time('Physics');
   gameEngine.simulateObjectPhysics(100, deltaT);
+  console.timeEnd('Physics');
+  console.time('Rendering');
   gameEngine.drawObjects();
+  console.timeEnd('Rendering');
 
   previousT = time;
   window.requestAnimationFrame(update);

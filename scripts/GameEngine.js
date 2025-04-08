@@ -1,6 +1,3 @@
-//Instead of templateGame.js, change the file to where you have your canvas,
-import { c } from './templateGame.js';
-
 //-----------------------==----------- Utility Classes ----------------------------------
 export class FlatVector {
   constructor(x, y) {
@@ -738,6 +735,15 @@ class SceneObject {
 //---------------------------------- Game Engine Main Class ----------------------------------
 export class GameEngine {
   constructor() {
+    //Javascript Canvas
+    let canvas = document.getElementById('canvas');
+    canvas.width = window.innerWidth;
+    canvas.height = window.innerHeight;
+    canvas.style.background = '#0f0f0f';
+
+    this.c = canvas.getContext('2d');
+    this.c.transform(1, 0, 0, -1, 0, canvas.height);
+
     this.objects = {};
     this.objectsHirearchy = {};
 
@@ -1254,25 +1260,27 @@ export class GameEngine {
 
   //Looks at this.objectWithRenderers and draws everything in there
   drawObjects() {
+    this.c.fillStyle = '#0f0f0f';
+    this.c.fillRect(0, 0, canvas.width, canvas.height);
     for (const name of this.objectsWithRender) {
       let sceneObject = this.objects[name];
 
-      c.beginPath();
-      c.fillStyle = sceneObject.color;
+      this.c.beginPath();
+      this.c.fillStyle = sceneObject.color;
 
       if (sceneObject.shape === 'box') {
-        c.moveTo(sceneObject.vertices[0].x, sceneObject.vertices[0].y);
-        c.lineTo(sceneObject.vertices[1].x, sceneObject.vertices[1].y);
-        c.lineTo(sceneObject.vertices[2].x, sceneObject.vertices[2].y);
-        c.lineTo(sceneObject.vertices[3].x, sceneObject.vertices[3].y);
-        c.lineTo(sceneObject.vertices[0].x, sceneObject.vertices[0].y);
+        this.c.moveTo(sceneObject.vertices[0].x, sceneObject.vertices[0].y);
+        this.c.lineTo(sceneObject.vertices[1].x, sceneObject.vertices[1].y);
+        this.c.lineTo(sceneObject.vertices[2].x, sceneObject.vertices[2].y);
+        this.c.lineTo(sceneObject.vertices[3].x, sceneObject.vertices[3].y);
+        this.c.lineTo(sceneObject.vertices[0].x, sceneObject.vertices[0].y);
       } else if (sceneObject.shape === 'triangle') {
-        c.moveTo(sceneObject.vertices[0].x, sceneObject.vertices[0].y);
-        c.lineTo(sceneObject.vertices[1].x, sceneObject.vertices[1].y);
-        c.lineTo(sceneObject.vertices[2].x, sceneObject.vertices[2].y);
-        c.lineTo(sceneObject.vertices[0].x, sceneObject.vertices[0].y);
+        this.c.moveTo(sceneObject.vertices[0].x, sceneObject.vertices[0].y);
+        this.c.lineTo(sceneObject.vertices[1].x, sceneObject.vertices[1].y);
+        this.c.lineTo(sceneObject.vertices[2].x, sceneObject.vertices[2].y);
+        this.c.lineTo(sceneObject.vertices[0].x, sceneObject.vertices[0].y);
       } else if (sceneObject.shape === 'circle') {
-        c.arc(
+        this.c.arc(
           sceneObject.position.x,
           sceneObject.position.y,
           sceneObject.radius,
@@ -1281,8 +1289,8 @@ export class GameEngine {
         );
       }
 
-      c.fill();
-      c.closePath();
+      this.c.fill();
+      this.c.closePath();
     }
   }
 }
